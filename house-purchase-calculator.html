@@ -262,14 +262,25 @@
   </div>
 
   <div class="section-head">Balance over time</div>
-  <div class="chart-wrap">
+  <div class="chart-wrap" style="margin-bottom:12px;">
     <div class="chart-legend">
-      <span><span class="leg-swatch" style="background:#378ADD;"></span><span id="leg1label">Loan</span></span>
-      <span id="leg-l2" class="hidden"><span class="leg-swatch" style="background:#D85A30;"></span>Loan 2</span>
-      <span id="leg-combined" class="hidden"><span class="leg-swatch" style="background:#888780;"></span>Combined</span>
+      <span><span class="leg-swatch" style="background:#4d8ef5;"></span><span id="leg1label">Loan</span></span>
+      <span id="leg-l2" class="hidden"><span class="leg-swatch" style="background:#f5734d;"></span>Loan 2</span>
+      <span id="leg-combined" class="hidden"><span class="leg-swatch" style="background:#7a93b5;"></span>Combined</span>
     </div>
     <div style="position:relative;width:100%;height:240px;">
       <canvas id="balChart"></canvas>
+    </div>
+  </div>
+
+  <div class="section-head">Interest vs principal — monthly payment breakdown</div>
+  <div class="chart-wrap">
+    <div class="chart-legend">
+      <span><span class="leg-swatch" style="background:#f5734d;"></span>Interest portion</span>
+      <span><span class="leg-swatch" style="background:#2dd4a0;"></span>Principal portion</span>
+    </div>
+    <div style="position:relative;width:100%;height:260px;">
+      <canvas id="amortChart"></canvas>
     </div>
   </div>
 
@@ -510,6 +521,7 @@ function calc() {
     const labels=[], bd1=[];
     for (let yr=0;yr<=l1Y;yr++) { labels.push('Yr '+yr); bd1.push(+(bal(l1P,l1R,l1Y,yr)/1e6).toFixed(2)); }
     drawChart(labels, bd1, null, null);
+    drawAmortChart(l1P, l1R, l1Y, 0, 0, 0);
 
   } else {
     const l1P = parseFloat(document.getElementById('l1Principal').value)||0;
@@ -569,13 +581,14 @@ function calc() {
       bdC.push(+((b1+b2)/1e6).toFixed(2));
     }
     drawChart(labels, bd1, bd2, bdC);
+    drawAmortChart(l1P, l1R, l1Y, l2P, l2R, l2Y);
   }
 }
 
 function drawChart(labels, bd1, bd2, bdC) {
-  const datasets = [{ label:'Loan 1', data:bd1, borderColor:'#378ADD', backgroundColor:'transparent', borderWidth:2, pointRadius:0 }];
-  if (bd2) datasets.push({ label:'Loan 2', data:bd2, borderColor:'#D85A30', backgroundColor:'transparent', borderWidth:2, pointRadius:0, borderDash:[5,3] });
-  if (bdC) datasets.push({ label:'Combined', data:bdC, borderColor:'#888780', backgroundColor:'transparent', borderWidth:1.5, pointRadius:0, borderDash:[2,2] });
+  const datasets = [{ label:'Loan 1', data:bd1, borderColor:'#4d8ef5', backgroundColor:'rgba(77,142,245,0.08)', fill:true, borderWidth:2, pointRadius:0, tension:0.3 }];
+  if (bd2) datasets.push({ label:'Loan 2', data:bd2, borderColor:'#f5734d', backgroundColor:'rgba(245,115,77,0.06)', fill:true, borderWidth:2, pointRadius:0, tension:0.3, borderDash:[5,3] });
+  if (bdC) datasets.push({ label:'Combined', data:bdC, borderColor:'#7a93b5', backgroundColor:'transparent', borderWidth:1.5, pointRadius:0, tension:0.3, borderDash:[2,2] });
   if (chart) chart.destroy();
   chart = new Chart(document.getElementById('balChart'), {
     type:'line', data:{labels,datasets},
@@ -584,11 +597,94 @@ function drawChart(labels, bd1, bd2, bdC) {
       plugins:{ legend:{display:false}, tooltip:{callbacks:{label:ctx=>ctx.dataset.label+': $'+ctx.parsed.y.toFixed(2)+'M'}} },
       scales:{
         x:{ticks:{autoSkip:true,maxTicksLimit:10,font:{size:11},color:'#4a6380'},grid:{display:false}},
-        y:{ticks:{font:{size:11},color:'#4a6380',callback:v=>'$'+v+'M'},grid:{color:'rgba(255,255,255,0.05)'}}
+        y:{ticks:{font:{size:11},color:'#4a6380',callback:v=>'$'+v+'M'},grid:{color:'rgba(255,255,255,0.04)'}}
       }
     }
   });
 }
+
+let amortChart = null;
+function drawAmortChart(p1, r1, y1, p2, r2, y2) {
+  // Build monthly breakdown — show every 6th month for perf
+  const maxY = Math.max(y1, y2||0);
+  const labels=[], intData=[], prinData=[];
+  const rm1 = r1/100/12, m1 = mp(p1,r1,y1);
+  const rm2 = r2 ? r2/100/12 : 0;
+  const m2  = (p2&&r2&&y2) ? mp(p2,r2,y2) : 0;
+
+  for (let mo=1; mo<=maxY*12; mo++) {
+    // interest paid this month across active loans
+    const b1 = bal(p1,r1,y1,(mo-1)/12);
+    const b2 = (p2&&r2&&y2) ? bal(p2,r2,y2,(mo-1)/12) : 0;
+    const intMonth = b1*rm1 + b2*rm2;
+    const totalPmt = (mo<=y1*12?m1:0) + (p2&&r2&&y2&&mo<=y2*12?m2:0);
+    const prinMonth = Math.max(0, totalPmt - intMonth);
+
+    if (mo % 6 === 0 || mo === 1) {
+      labels.push('Yr '+(mo/12).toFixed(1).replace('.0',''));
+      intData.push(+(intMonth/1000).toFixed(1));
+      prinData.push(+(prinMonth/1000).toFixed(1));
+    }
+  }
+
+  if (amortChart) amortChart.destroy();
+  amortChart = new Chart(document.getElementById('amortChart'), {
+    type:'bar',
+    data:{ labels, datasets:[
+      { label:'Interest', data:intData, backgroundColor:'rgba(245,115,77,0.75)', borderWidth:0, borderRadius:2 },
+      { label:'Principal', data:prinData, backgroundColor:'rgba(45,212,160,0.75)', borderWidth:0, borderRadius:2 }
+    ]},
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{
+        legend:{display:false},
+        tooltip:{callbacks:{
+          label: ctx => ctx.dataset.label+': $'+ctx.parsed.y.toFixed(1)+'K/mo'
+        }}
+      },
+      scales:{
+        x:{ stacked:true, ticks:{autoSkip:true,maxTicksLimit:14,font:{size:10},color:'#4a6380'}, grid:{display:false} },
+        y:{ stacked:true, ticks:{font:{size:11},color:'#4a6380',callback:v=>'$'+v+'K'}, grid:{color:'rgba(255,255,255,0.04)'} }
+      }
+    }
+  });
+}
+
+// ── Formatted number inputs ──────────────────────────────────────────────────
+// Replace raw number inputs with a formatted display + hidden real input pattern
+function setupFormattedInputs() {
+  document.querySelectorAll('input[type="number"].fmt-input').forEach(input => {
+    // Already set up
+    if (input.dataset.formatted) return;
+    input.dataset.formatted = '1';
+
+    // Create visible text overlay
+    const wrapper = input.parentElement;
+    const display = document.createElement('div');
+    display.className = 'fmt-display';
+    display.style.cssText = `
+      font-family: var(--mono); font-size: 13px; color: var(--white);
+      background: var(--ink); border: 1px solid var(--border);
+      border-radius: ${input.classList.contains('solo') ? 'var(--radius)' : '0 var(--radius) var(--radius) 0'};
+      padding: 0 10px; height: 38px; width: 100%; display: flex; align-items: center;
+      cursor: text; position: absolute; top: 0; left: 0; pointer-events: none;
+    `;
+    function updateDisplay() {
+      const v = parseFloat(input.value);
+      display.textContent = isNaN(v) ? '' : v.toLocaleString();
+    }
+    input.addEventListener('input', updateDisplay);
+    input.addEventListener('focus', () => { display.style.display = 'none'; });
+    input.addEventListener('blur',  () => { display.style.display = 'flex'; updateDisplay(); });
+
+    if (window.getComputedStyle(wrapper).position === 'static') wrapper.style.position = 'relative';
+    input.style.color = 'transparent';
+    input.style.caretColor = 'var(--white)';
+    wrapper.appendChild(display);
+    updateDisplay();
+  });
+}
+
 
 // Closing costs calc
 function calcCC() {
@@ -680,12 +776,71 @@ function wireCC() {
 buildCustomRows();
 wireCC();
 
+// Comma-formatted number display for $ inputs
+function initFormattedInputs() {
+  const dollarInputs = [
+    document.getElementById('propValue'),
+    document.getElementById('l1Principal'),
+    document.getElementById('cc-stampDuty'),
+    document.getElementById('cc-lettersPossession'),
+    document.getElementById('cc-mortgageReg'),
+    document.getElementById('cc-valuator'),
+    document.getElementById('cc-surveyor'),
+    document.getElementById('cc-attLOP'),
+    document.getElementById('cc-attAFS'),
+    document.getElementById('cc-attOA'),
+  ];
+
+  dollarInputs.forEach(input => {
+    if (!input) return;
+
+    // Make the parent relative for overlay positioning
+    const parent = input.parentElement;
+    if (window.getComputedStyle(parent).position === 'static') parent.style.position = 'relative';
+
+    // Create display overlay
+    const overlay = document.createElement('div');
+    const isRightRadius = input.classList.contains('solo');
+    overlay.style.cssText = `
+      position:absolute; inset:0; pointer-events:none;
+      display:flex; align-items:center;
+      padding:0 10px; padding-right:${input.style.paddingRight||'10px'};
+      font-family:var(--mono); font-size:13px; color:var(--white);
+      border-radius:${isRightRadius ? 'var(--radius)' : '0 var(--radius) var(--radius) 0'};
+      background:var(--ink);
+      transition: opacity 0.1s;
+    `;
+
+    function refresh() {
+      const v = parseFloat(input.value);
+      overlay.textContent = isNaN(v) ? '' : Math.round(v).toLocaleString();
+    }
+
+    input.addEventListener('focus', () => { overlay.style.opacity = '0'; });
+    input.addEventListener('blur',  () => { overlay.style.opacity = '1'; refresh(); });
+    input.addEventListener('input', refresh);
+
+    // Style the real input so text is invisible but cursor shows
+    input.style.caretColor = 'var(--white)';
+    input.style.color = 'transparent';
+
+    parent.appendChild(overlay);
+    refresh();
+  });
+
+  // Also format custom cost amount fields as they're created dynamically
+  document.getElementById('customCosts').addEventListener('input', e => {
+    if (e.target.classList.contains('custom-amt')) calcCC();
+  });
+}
+
 // Override calc to also trigger CC
 const _origCalc = calc;
 function calcAll() { _origCalc(); calcCC(); }
 document.querySelectorAll('input[type="number"]').forEach(el => el.addEventListener('input', calcAll));
 setMode(1);
 calcCC();
+initFormattedInputs();
 </script>
 </body>
 </html>
