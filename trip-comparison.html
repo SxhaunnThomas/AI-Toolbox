@@ -1,0 +1,932 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Departures Desk — Trip Comparison</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --navy-950:#0A0E1A;
+    --navy-900:#10162A;
+    --navy-850:#141C33;
+    --navy-800:#1B2440;
+    --paper:#F3ECDA;
+    --paper-dim:#E7DCC0;
+    --ink:#1D2338;
+    --ink-soft:#5B6480;
+    --amber:#FFB400;
+    --amber-deep:#C98A00;
+    --teal:#2FBF9F;
+    --coral:#FF6152;
+    --line-navy:rgba(255,255,255,0.11);
+    --line-paper:rgba(29,35,56,0.16);
+    --shadow: 0 18px 40px -18px rgba(0,0,0,0.55);
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:
+      radial-gradient(ellipse 900px 500px at 15% -10%, rgba(255,180,0,0.08), transparent 60%),
+      radial-gradient(ellipse 700px 500px at 100% 0%, rgba(47,191,159,0.06), transparent 55%),
+      var(--navy-950);
+    color:#EDEBE2;
+    font-family:'Space Grotesk', sans-serif;
+    min-height:100vh;
+    -webkit-font-smoothing:antialiased;
+  }
+  .mono{font-family:'IBM Plex Mono', monospace;}
+  a{color:inherit;}
+
+  /* ---------- Layout shell ---------- */
+  .wrap{max-width:1240px;margin:0 auto;padding:28px 24px 80px;}
+
+  /* ---------- Header ---------- */
+  .topbar{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap;margin-bottom:28px;}
+  .brand-eyebrow{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:11px;letter-spacing:0.18em;text-transform:uppercase;
+    color:var(--amber); margin:0 0 6px;
+  }
+  h1{margin:0;font-size:clamp(26px,4vw,38px);font-weight:700;letter-spacing:-0.02em;}
+  .subhead{margin:6px 0 0;color:#9BA3C0;font-size:14.5px;max-width:520px;line-height:1.5;}
+
+  .desk-actions{display:flex;gap:8px;flex-wrap:wrap;}
+  .btn{
+    font-family:'Space Grotesk',sans-serif;
+    font-size:13px;font-weight:600;letter-spacing:0.01em;
+    padding:9px 14px;border-radius:8px;border:1px solid var(--line-navy);
+    background:var(--navy-850);color:#EDEBE2;cursor:pointer;
+    display:inline-flex;align-items:center;gap:6px;
+    transition:border-color .15s, transform .1s, background .15s;
+    white-space:nowrap;
+  }
+  .btn:hover{border-color:rgba(255,180,0,0.5); background:var(--navy-800);}
+  .btn:active{transform:translateY(1px);}
+  .btn-amber{background:var(--amber); color:#1A1300; border-color:var(--amber);}
+  .btn-amber:hover{background:#ffc23a; border-color:#ffc23a;}
+  .btn-ghost{background:transparent;}
+  .btn-danger{color:var(--coral); border-color:rgba(255,97,82,0.35);}
+  .btn-danger:hover{background:rgba(255,97,82,0.1); border-color:var(--coral);}
+  .btn-sm{padding:6px 10px;font-size:12px;border-radius:6px;}
+  input[type=file]{display:none;}
+
+  /* ---------- Split-flap rate board ---------- */
+  .board{
+    background:linear-gradient(180deg, var(--navy-850), var(--navy-900));
+    border:1px solid var(--line-navy);
+    border-radius:16px;
+    padding:22px 24px;
+    margin-bottom:22px;
+    box-shadow:var(--shadow);
+    display:flex; align-items:center; justify-content:space-between; gap:24px; flex-wrap:wrap;
+  }
+  .board-rate{display:flex;align-items:center;gap:16px;flex-wrap:wrap;}
+  .rate-label{font-size:12px; letter-spacing:0.14em; text-transform:uppercase; color:#8A93B5; font-family:'IBM Plex Mono',monospace;}
+  .flap-row{display:flex;gap:4px;align-items:baseline;}
+  .flap{
+    background:#0E1424;
+    border:1px solid rgba(255,180,0,0.25);
+    border-radius:5px;
+    padding:6px 3px;
+    min-width:26px;
+    text-align:center;
+    font-family:'IBM Plex Mono',monospace;
+    font-weight:700;
+    font-size:26px;
+    color:var(--amber);
+    box-shadow: inset 0 -10px 14px -10px rgba(0,0,0,0.6);
+    position:relative;
+  }
+  .flap::after{
+    content:"";
+    position:absolute; left:0; right:0; top:50%;
+    height:1px; background:rgba(0,0,0,0.45);
+  }
+  .flap.dim{opacity:0.35;}
+  .flap-sep{color:#556; font-size:22px; align-self:center; padding:0 2px;}
+  .rate-meta{font-size:11.5px; color:#7C86A8; font-family:'IBM Plex Mono',monospace; display:flex; gap:14px; flex-wrap:wrap; align-items:center; margin-top:6px;}
+  .rate-meta .dot{width:6px;height:6px;border-radius:50%;background:var(--teal);display:inline-block;margin-right:5px;}
+  .rate-meta .dot.stale{background:var(--coral);}
+  .rate-note{
+    font-size:11.5px; color:#7C86A8; max-width:420px; line-height:1.6; margin:6px 0 0;
+  }
+  .rate-note strong{color:#B7BEDA;}
+
+  .rate-controls{display:flex; align-items:center; gap:10px; flex-wrap:wrap;}
+  .toggle-line{display:flex;align-items:center;gap:8px;font-size:12.5px;color:#B7BEDA;}
+  .toggle-line input[type=checkbox]{accent-color:var(--amber); width:15px;height:15px;}
+  .manual-rate-input{
+    width:100px; background:var(--navy-950); border:1px solid var(--line-navy);
+    color:#EDEBE2; border-radius:7px; padding:7px 9px; font-family:'IBM Plex Mono',monospace;
+    font-size:13px;
+  }
+  .manual-rate-input:disabled{opacity:0.35;}
+
+  /* ---------- Global trip controls ---------- */
+  .globals{
+    display:flex; gap:14px; flex-wrap:wrap; margin-bottom:26px;
+  }
+  .stepper-card{
+    background:var(--navy-850); border:1px solid var(--line-navy); border-radius:12px;
+    padding:14px 18px; display:flex; align-items:center; gap:14px; flex:1; min-width:230px;
+  }
+  .stepper-label{font-size:11.5px; letter-spacing:0.12em; text-transform:uppercase; color:#8A93B5;}
+  .stepper-label .big{display:block; font-family:'IBM Plex Mono',monospace; font-size:22px; color:#EDEBE2; letter-spacing:0; margin-top:2px; font-weight:600;}
+  .stepper-btns{display:flex; gap:6px; margin-left:auto;}
+  .step-btn{
+    width:30px;height:30px;border-radius:8px;border:1px solid var(--line-navy);
+    background:var(--navy-900); color:var(--amber); font-size:16px; font-weight:700; cursor:pointer;
+    display:flex;align-items:center;justify-content:center; line-height:1;
+  }
+  .step-btn:hover{border-color:var(--amber);}
+
+  /* ---------- Section headers ---------- */
+  .section-head{display:flex; align-items:baseline; justify-content:space-between; margin:36px 0 14px; gap:12px; flex-wrap:wrap;}
+  .section-title{font-size:13px; letter-spacing:0.16em; text-transform:uppercase; color:#8A93B5; font-family:'IBM Plex Mono',monospace; display:flex; align-items:center; gap:10px;}
+  .section-title::before{content:""; width:18px; height:1px; background:var(--amber); display:inline-block;}
+  .section-hint{font-size:12.5px; color:#6F789B;}
+
+  /* ---------- Destination cards (boarding passes) ---------- */
+  .deck{display:flex; gap:20px; overflow-x:auto; padding:6px 4px 18px; scroll-snap-type:x proximity;}
+  .deck::-webkit-scrollbar{height:8px;}
+  .deck::-webkit-scrollbar-thumb{background:var(--navy-800); border-radius:4px;}
+
+  .pass{
+    scroll-snap-align:start;
+    flex:0 0 320px;
+    background:var(--paper);
+    color:var(--ink);
+    border-radius:14px;
+    position:relative;
+    box-shadow:var(--shadow);
+    overflow:hidden;
+  }
+  .pass-top{
+    padding:16px 18px 14px;
+    display:flex; justify-content:space-between; align-items:flex-start; gap:8px;
+  }
+  .pass-eyebrow{font-family:'IBM Plex Mono',monospace; font-size:10px; letter-spacing:0.14em; text-transform:uppercase; color:var(--ink-soft); margin:0 0 6px;}
+  .pass-name{
+    font-size:19px; font-weight:700; border:none; background:transparent; color:var(--ink);
+    font-family:'Space Grotesk',sans-serif; width:100%; padding:2px 0; border-bottom:1.5px dashed transparent;
+  }
+  .pass-name:focus{outline:none; border-bottom-color:var(--amber-deep);}
+  .pass-remove{
+    background:none;border:none;cursor:pointer;color:var(--ink-soft);font-size:16px;line-height:1;
+    padding:4px; border-radius:6px;
+  }
+  .pass-remove:hover{color:var(--coral); background:rgba(255,97,82,0.12);}
+
+  .perf{
+    position:relative; height:0; border-top:1.5px dashed var(--line-paper); margin:0 0;
+  }
+  .perf::before,.perf::after{
+    content:""; position:absolute; top:-8px; width:16px;height:16px;border-radius:50%;
+    background:var(--navy-950);
+  }
+  .perf::before{left:-26px;}
+  .perf::after{right:-26px;}
+
+  .pass-section{padding:14px 18px;}
+  .pass-section-label{
+    font-family:'IBM Plex Mono',monospace; font-size:10.5px; letter-spacing:0.13em; text-transform:uppercase;
+    color:var(--ink-soft); display:flex; justify-content:space-between; align-items:center; margin-bottom:9px;
+  }
+  .field-row{display:flex; align-items:center; gap:10px; margin-bottom:8px;}
+  .field-row label{font-size:12.5px; color:var(--ink-soft); flex:1;}
+  .field-row .curr{font-family:'IBM Plex Mono',monospace; font-size:12px; color:var(--ink-soft);}
+  .pass input[type=number], .pass input[type=text]{
+    background:var(--paper-dim); border:1px solid var(--line-paper); border-radius:7px;
+    padding:6px 8px; font-family:'IBM Plex Mono',monospace; font-size:13px; color:var(--ink);
+    width:92px; text-align:right;
+  }
+  .pass input[type=text].activity-name{width:100%; text-align:left;}
+  .pass input:focus{outline:2px solid var(--amber-deep); outline-offset:1px;}
+
+  .nights-sync{display:flex; align-items:center; gap:6px; font-size:11.5px; color:var(--ink-soft);}
+  .nights-sync input{accent-color:var(--amber-deep); width:13px; height:13px;}
+
+  .activity-row{display:grid; grid-template-columns:1fr 58px 40px 20px; gap:6px; align-items:center; margin-bottom:6px;}
+  .activity-row input.qty{width:100%; text-align:center; padding:6px 4px;}
+  .activity-row input.cost{width:100%;}
+  .act-del{background:none;border:none;color:var(--ink-soft);cursor:pointer;font-size:14px;padding:2px;}
+  .act-del:hover{color:var(--coral);}
+  .act-per-person{font-size:10.5px; color:var(--ink-soft); display:flex; align-items:center; gap:4px; margin:2px 0 10px;}
+  .act-per-person input{accent-color:var(--amber-deep); width:12px; height:12px;}
+  .add-activity{
+    background:none; border:1px dashed var(--line-paper); color:var(--ink-soft);
+    font-family:'Space Grotesk',sans-serif; font-size:12px; border-radius:7px; padding:6px 10px;
+    cursor:pointer; width:100%; margin-top:2px;
+  }
+  .add-activity:hover{border-color:var(--amber-deep); color:var(--ink);}
+
+  .pass-totals{
+    background:var(--ink); color:var(--paper); padding:16px 18px 18px; margin-top:2px;
+  }
+  .total-row{display:flex; justify-content:space-between; align-items:baseline; font-size:12px; color:#B9BEDA; margin-bottom:4px;}
+  .total-row .val{font-family:'IBM Plex Mono',monospace; color:#DCE0F0;}
+  .total-row.grand{margin-top:10px; padding-top:10px; border-top:1px solid rgba(255,255,255,0.14);}
+  .total-row.grand .lbl{font-size:12.5px; letter-spacing:0.08em; text-transform:uppercase; color:var(--amber);}
+  .total-row.grand .val{font-size:22px; font-weight:700; color:var(--amber);}
+  .total-row.pp .val{font-size:15px; color:var(--teal); font-weight:600;}
+  .best-badge{
+    display:none; position:absolute; top:14px; right:-30px; background:var(--teal); color:#04241C;
+    font-family:'IBM Plex Mono',monospace; font-size:10px; font-weight:700; letter-spacing:0.08em;
+    padding:4px 30px; transform:rotate(38deg); box-shadow:0 3px 8px rgba(0,0,0,0.3);
+  }
+  .pass.best .best-badge{display:block;}
+
+  .add-pass{
+    flex:0 0 220px; border:2px dashed var(--line-navy); border-radius:14px;
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px;
+    background:transparent; color:#8A93B5; cursor:pointer; font-family:'Space Grotesk',sans-serif;
+    font-size:14px; font-weight:600; min-height:340px;
+  }
+  .add-pass:hover{border-color:var(--amber); color:var(--amber);}
+  .add-pass .plus{font-size:34px; line-height:1; font-weight:400;}
+
+  /* ---------- Manifest / comparison ---------- */
+  .manifest{
+    background:var(--navy-850); border:1px solid var(--line-navy); border-radius:14px; padding:6px 0; overflow:hidden;
+  }
+  .manifest-row{
+    display:grid; grid-template-columns: 1.4fr 2.2fr 1fr 1fr; gap:14px; align-items:center;
+    padding:12px 20px; border-bottom:1px solid var(--line-navy);
+  }
+  .manifest-row:last-child{border-bottom:none;}
+  .manifest-row.head{font-family:'IBM Plex Mono',monospace; font-size:10.5px; letter-spacing:0.12em; text-transform:uppercase; color:#6F789B;}
+  .manifest-dest{display:flex; align-items:center; gap:8px; font-weight:600; font-size:14px;}
+  .manifest-dest .tag{width:7px;height:7px;border-radius:50%;background:var(--amber);}
+  .bar-track{background:var(--navy-950); border-radius:5px; height:12px; overflow:hidden; position:relative;}
+  .bar-fill{height:100%; background:linear-gradient(90deg, var(--amber-deep), var(--amber)); border-radius:5px; transition:width .4s ease;}
+  .bar-fill.best{background:linear-gradient(90deg, #16806A, var(--teal));}
+  .manifest-total{font-family:'IBM Plex Mono',monospace; font-size:14px; text-align:right;}
+  .manifest-pp{font-family:'IBM Plex Mono',monospace; font-size:12.5px; text-align:right; color:#9BA3C0;}
+  .best-pill{
+    display:inline-block; font-size:9.5px; font-family:'IBM Plex Mono',monospace; letter-spacing:0.08em;
+    background:rgba(47,191,159,0.16); color:var(--teal); padding:2px 6px; border-radius:4px; margin-left:6px;
+  }
+
+  .breakdown-note{font-size:12px; color:#6F789B; padding:14px 20px 4px; font-family:'IBM Plex Mono',monospace;}
+
+  /* ---------- Empty state ---------- */
+  .empty{
+    border:1px dashed var(--line-navy); border-radius:14px; padding:40px 20px; text-align:center; color:#6F789B; font-size:14px;
+  }
+
+  footer{margin-top:44px; text-align:center; font-size:11.5px; color:#5A6386; font-family:'IBM Plex Mono',monospace; line-height:1.7;}
+  footer a{color:#8A93B5; text-decoration:underline;}
+
+  .toast{
+    position:fixed; bottom:22px; left:50%; transform:translateX(-50%) translateY(20px);
+    background:var(--navy-800); border:1px solid var(--line-navy); color:#EDEBE2;
+    padding:10px 18px; border-radius:9px; font-size:13px; opacity:0; pointer-events:none;
+    transition:opacity .25s, transform .25s; box-shadow:var(--shadow); z-index:50;
+  }
+  .toast.show{opacity:1; transform:translateX(-50%) translateY(0);}
+
+  @media (prefers-reduced-motion: reduce){
+    *{transition:none !important;}
+  }
+  @media (max-width:640px){
+    .topbar{flex-direction:column;}
+    .board{flex-direction:column; align-items:flex-start;}
+    .manifest-row{grid-template-columns:1fr; gap:6px;}
+    .manifest-total,.manifest-pp{text-align:left;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="topbar">
+    <div>
+      <p class="brand-eyebrow">Departures Desk · Kingston (KIN)</p>
+      <h1>Trip Comparison</h1>
+      <p class="subhead">Line up your shortlist, price flights, stays and activities side by side, and see it all converted to JMD in real time.</p>
+    </div>
+    <div class="desk-actions">
+      <button class="btn btn-ghost btn-sm" id="btnSaveScenario">💾 Save scenario</button>
+      <button class="btn btn-ghost btn-sm" id="btnLoadScenario">📂 Load scenario</button>
+      <button class="btn btn-ghost btn-sm" id="btnExport">⭳ Export JSON</button>
+      <button class="btn btn-ghost btn-sm" id="btnImport">⭱ Import JSON</button>
+      <input type="file" id="fileImport" accept="application/json">
+    </div>
+  </div>
+
+  <div class="board">
+    <div>
+      <div class="board-rate">
+        <div>
+          <p class="rate-label">USD → JMD</p>
+          <div class="flap-row" id="flapRow"></div>
+        </div>
+        <button class="btn btn-sm" id="btnRefreshRate" title="Refresh live rate">↻ Refresh</button>
+      </div>
+      <div class="rate-meta" id="rateMeta">
+        <span><span class="dot" id="rateDot"></span><span id="rateStatus">Fetching live rate…</span></span>
+      </div>
+      <p class="rate-note" id="rateNote" style="display:none;"></p>
+    </div>
+    <div class="rate-controls">
+      <label class="toggle-line"><input type="checkbox" id="chkManualRate"> Set rate manually</label>
+      <input type="number" step="0.01" class="manual-rate-input mono" id="manualRateInput" placeholder="e.g. 160.25" disabled>
+    </div>
+  </div>
+
+  <div class="globals">
+    <div class="stepper-card">
+      <div class="stepper-label">Trip length<span class="big mono" id="nightsDisplay">7 nights</span></div>
+      <div class="stepper-btns">
+        <button class="step-btn" id="nightsMinus">−</button>
+        <button class="step-btn" id="nightsPlus">+</button>
+      </div>
+    </div>
+    <div class="stepper-card">
+      <div class="stepper-label">Travelers<span class="big mono" id="travelersDisplay">2 people</span></div>
+      <div class="stepper-btns">
+        <button class="step-btn" id="travelersMinus">−</button>
+        <button class="step-btn" id="travelersPlus">+</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="section-head">
+    <span class="section-title">Shortlist</span>
+    <span class="section-hint">Drag to scroll · costs are per the whole trip unless marked per‑person</span>
+  </div>
+
+  <div class="deck" id="deck"></div>
+
+  <div class="section-head">
+    <span class="section-title">Manifest</span>
+    <span class="section-hint">Total estimated cost, converted at the current rate</span>
+  </div>
+  <div id="manifestWrap"></div>
+
+  <footer>
+    Figures are estimates you enter — nothing here is fetched automatically except the exchange rate.<br>
+    Live rate via <a href="https://www.exchangerate-api.com/" target="_blank" rel="noopener">exchangerate-api.com</a> (open endpoint, updated roughly hourly). Your scenarios save to this Claude session's storage — use Export for a permanent copy.
+  </footer>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ---------------- State ---------------- */
+  var uid = function(){ return Math.random().toString(36).slice(2,9); };
+
+  function defaultDestination(name){
+    return {
+      id: uid(),
+      name: name || "New destination",
+      flightPerPerson: 0,
+      accomPerNight: 0,
+      nightsSynced: true,
+      nightsOverride: 7,
+      activities: [
+        { id: uid(), name: "Excursion", cost: 0, qty: 1, perPerson: false }
+      ]
+    };
+  }
+
+  var state = {
+    travelers: 2,
+    nights: 7,
+    rate: null,
+    rateManual: false,
+    manualRate: null,
+    rateUpdated: null,
+    destinations: [
+      defaultDestination("Destination A"),
+      defaultDestination("Destination B")
+    ]
+  };
+
+  /* ---------------- Helpers ---------------- */
+  function fmtUSD(n){
+    if(!isFinite(n)) n = 0;
+    return "$" + n.toLocaleString("en-US", {minimumFractionDigits:2, maximumFractionDigits:2});
+  }
+  function fmtJMD(n){
+    if(!isFinite(n)) n = 0;
+    return "J$" + n.toLocaleString("en-US", {minimumFractionDigits:0, maximumFractionDigits:0});
+  }
+  function currentRate(){
+    if(state.rateManual){
+      var m = parseFloat(state.manualRate);
+      return isFinite(m) && m > 0 ? m : 0;
+    }
+    return state.rate || 0;
+  }
+  function nightsFor(dest){
+    return dest.nightsSynced ? state.nights : dest.nightsOverride;
+  }
+  function computeDest(dest){
+    var flights = (parseFloat(dest.flightPerPerson)||0) * state.travelers;
+    var accom = (parseFloat(dest.accomPerNight)||0) * nightsFor(dest);
+    var activities = dest.activities.reduce(function(sum, a){
+      var mult = a.perPerson ? state.travelers : 1;
+      return sum + (parseFloat(a.cost)||0) * (parseInt(a.qty)||0) * mult;
+    }, 0);
+    var totalUSD = flights + accom + activities;
+    var rate = currentRate();
+    var totalJMD = totalUSD * rate;
+    return {
+      flights: flights, accom: accom, activities: activities,
+      totalUSD: totalUSD, totalJMD: totalJMD,
+      perPersonJMD: totalJMD / Math.max(1, state.travelers)
+    };
+  }
+
+  function toast(msg){
+    var t = document.getElementById("toast");
+    t.textContent = msg;
+    t.classList.add("show");
+    clearTimeout(toast._h);
+    toast._h = setTimeout(function(){ t.classList.remove("show"); }, 2400);
+  }
+
+  /* ---------------- Split-flap rate board ---------------- */
+  function renderFlaps(){
+    var row = document.getElementById("flapRow");
+    var rate = currentRate();
+    var str = rate > 0 ? rate.toFixed(2) : "----";
+    row.innerHTML = "";
+    for(var i=0;i<str.length;i++){
+      var ch = str[i];
+      if(ch === "."){
+        var sep = document.createElement("span");
+        sep.className = "flap-sep mono";
+        sep.textContent = ".";
+        row.appendChild(sep);
+        continue;
+      }
+      var f = document.createElement("div");
+      f.className = "flap" + (rate>0 ? "" : " dim");
+      f.textContent = ch;
+      row.appendChild(f);
+    }
+  }
+
+  function renderRateMeta(){
+    var statusEl = document.getElementById("rateStatus");
+    var dotEl = document.getElementById("rateDot");
+    if(state.rateManual){
+      statusEl.textContent = "Manual rate in use";
+      dotEl.className = "dot";
+    } else if(state.rate){
+      var t = state.rateUpdated ? new Date(state.rateUpdated).toLocaleTimeString() : "";
+      statusEl.textContent = "Live rate · updated " + t;
+      dotEl.className = "dot";
+    } else {
+      statusEl.textContent = "Live rate unavailable — set one manually";
+      dotEl.className = "dot stale";
+    }
+  }
+
+  function showRateNote(){
+    var note = document.getElementById("rateNote");
+    note.innerHTML = "<strong>Can't reach the rate here?</strong> Claude's in-chat preview blocks outside requests for security. Open this file directly in your browser (download it, then double-click) and the live rate will load normally. Until then, use \"Set rate manually\" below.";
+    note.style.display = "block";
+  }
+  function hideRateNote(){
+    document.getElementById("rateNote").style.display = "none";
+  }
+
+  function fetchRate(){
+    document.getElementById("rateStatus").textContent = "Fetching live rate…";
+    document.getElementById("rateDot").className = "dot stale";
+    fetch("https://open.er-api.com/v6/latest/USD")
+      .then(function(r){ if(!r.ok) throw new Error("bad response"); return r.json(); })
+      .then(function(data){
+        if(data && data.rates && data.rates.JMD){
+          state.rate = data.rates.JMD;
+          state.rateUpdated = Date.now();
+          renderFlaps();
+          renderRateMeta();
+          hideRateNote();
+          updateAllTotals();
+          persist();
+        } else {
+          throw new Error("no JMD rate in response");
+        }
+      })
+      .catch(function(err){
+        console.warn("Rate fetch failed:", err);
+        renderRateMeta();
+        showRateNote();
+        if(!state.rate && !state.rateManual){
+          toast("Couldn't fetch a live rate — enter one manually below.");
+        }
+      });
+  }
+
+  /* ---------------- Rendering: destination cards ---------------- */
+  var deckEl = document.getElementById("deck");
+
+  function fieldRowHTML(labelHTML, inputHTML){
+    return '<div class="field-row"><label>'+labelHTML+'</label>'+inputHTML+'</div>';
+  }
+
+  function activityRowHTML(a){
+    return (
+      '<div class="activity-row" data-act="'+a.id+'">'+
+        '<input type="text" class="activity-name mono" data-field="name" value="'+escapeAttr(a.name)+'" placeholder="Activity">'+
+        '<input type="number" class="cost mono" data-field="cost" value="'+a.cost+'" min="0" step="1">'+
+        '<input type="number" class="qty mono" data-field="qty" value="'+a.qty+'" min="0" step="1">'+
+        '<button class="act-del" data-del="'+a.id+'" title="Remove">✕</button>'+
+      '</div>'+
+      '<label class="act-per-person"><input type="checkbox" data-field="perPerson" '+(a.perPerson?'checked':'')+'> cost is per person</label>'
+    );
+  }
+
+  function escapeAttr(s){
+    return String(s).replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;");
+  }
+
+  function passHTML(dest){
+    var nightsVal = nightsFor(dest);
+    return (
+      '<div class="pass" data-dest="'+dest.id+'">'+
+        '<div class="best-badge">Best value</div>'+
+        '<div class="pass-top">'+
+          '<div style="flex:1;">'+
+            '<p class="pass-eyebrow">Destination</p>'+
+            '<input class="pass-name" data-field="name" value="'+escapeAttr(dest.name)+'">'+
+          '</div>'+
+          '<button class="pass-remove" data-remove="'+dest.id+'" title="Remove destination">✕</button>'+
+        '</div>'+
+
+        '<div class="perf"></div>'+
+        '<div class="pass-section">'+
+          '<div class="pass-section-label"><span>✈ Flights</span></div>'+
+          fieldRowHTML('Per person <span class="curr">USD</span>', '<input type="number" class="mono" data-field="flightPerPerson" value="'+dest.flightPerPerson+'" min="0" step="1">')+
+        '</div>'+
+
+        '<div class="perf"></div>'+
+        '<div class="pass-section">'+
+          '<div class="pass-section-label"><span>🛏 Stay</span>'+
+            '<span class="nights-sync"><input type="checkbox" data-field="nightsSynced" '+(dest.nightsSynced?'checked':'')+'> sync nights</span>'+
+          '</div>'+
+          fieldRowHTML('Nights', '<input type="number" class="mono" data-field="nightsOverride" value="'+nightsVal+'" min="0" step="1" '+(dest.nightsSynced?'disabled':'')+'>')+
+          fieldRowHTML('Per night <span class="curr">USD</span>', '<input type="number" class="mono" data-field="accomPerNight" value="'+dest.accomPerNight+'" min="0" step="1">')+
+        '</div>'+
+
+        '<div class="perf"></div>'+
+        '<div class="pass-section">'+
+          '<div class="pass-section-label"><span>🎟 Activities</span></div>'+
+          '<div class="activities-list">'+
+            dest.activities.map(activityRowHTML).join("")+
+          '</div>'+
+          '<button class="add-activity" data-add-activity>+ Add activity</button>'+
+        '</div>'+
+
+        '<div class="pass-totals">'+
+          '<div class="total-row"><span class="lbl">Flights</span><span class="val" data-total="flights"></span></div>'+
+          '<div class="total-row"><span class="lbl">Accommodation</span><span class="val" data-total="accom"></span></div>'+
+          '<div class="total-row"><span class="lbl">Activities</span><span class="val" data-total="activities"></span></div>'+
+          '<div class="total-row grand"><span class="lbl">Total</span><span class="val" data-total="grand"></span></div>'+
+          '<div class="total-row pp"><span class="lbl">Per person</span><span class="val" data-total="pp"></span></div>'+
+        '</div>'+
+      '</div>'
+    );
+  }
+
+  function renderDeck(){
+    var html = state.destinations.map(passHTML).join("");
+    if(state.destinations.length < 5){
+      html += '<button class="add-pass" id="addPassBtn"><span class="plus">+</span>Add destination</button>';
+    }
+    deckEl.innerHTML = html;
+    if(document.getElementById("addPassBtn")){
+      document.getElementById("addPassBtn").addEventListener("click", function(){
+        if(state.destinations.length >= 5){ toast("Up to 5 destinations at a time."); return; }
+        var letter = String.fromCharCode(65 + state.destinations.length);
+        state.destinations.push(defaultDestination("Destination " + letter));
+        renderDeck();
+        renderManifest();
+        persist();
+      });
+    }
+    updateAllTotals();
+    attachDeckListeners();
+  }
+
+  function attachDeckListeners(){
+    Array.prototype.forEach.call(deckEl.querySelectorAll(".pass"), function(passEl){
+      var destId = passEl.getAttribute("data-dest");
+      var dest = state.destinations.find(function(d){ return d.id === destId; });
+      if(!dest) return;
+
+      passEl.querySelector('[data-remove]').addEventListener("click", function(){
+        if(state.destinations.length <= 1){ toast("Keep at least one destination."); return; }
+        state.destinations = state.destinations.filter(function(d){ return d.id !== destId; });
+        renderDeck();
+        renderManifest();
+        persist();
+      });
+
+      passEl.querySelectorAll('[data-field]').forEach(function(input){
+        if(input.closest(".activity-row") || input.closest(".act-per-person")) return;
+        var field = input.getAttribute("data-field");
+        var evt = input.type === "checkbox" ? "change" : "input";
+        input.addEventListener(evt, function(){
+          if(field === "nightsSynced"){
+            dest.nightsSynced = input.checked;
+            var nInput = passEl.querySelector('[data-field="nightsOverride"]');
+            nInput.disabled = dest.nightsSynced;
+            if(dest.nightsSynced) nInput.value = state.nights;
+          } else if(field === "nightsOverride"){
+            dest.nightsOverride = parseFloat(input.value)||0;
+          } else if(input.type === "checkbox"){
+            dest[field] = input.checked;
+          } else {
+            dest[field] = input.type === "number" ? input.value : input.value;
+          }
+          updateAllTotals();
+          renderManifest();
+          persist();
+        });
+      });
+
+      passEl.querySelector('[data-add-activity]').addEventListener("click", function(){
+        dest.activities.push({ id: uid(), name: "New activity", cost: 0, qty: 1, perPerson: false });
+        renderDeck();
+        renderManifest();
+        persist();
+      });
+
+      passEl.querySelectorAll(".activity-row").forEach(function(row){
+        var actId = row.getAttribute("data-act");
+        var act = dest.activities.find(function(a){ return a.id === actId; });
+        if(!act) return;
+        row.querySelectorAll('[data-field]').forEach(function(input){
+          var field = input.getAttribute("data-field");
+          input.addEventListener("input", function(){
+            act[field] = field === "name" ? input.value : (parseFloat(input.value)||0);
+            updateAllTotals();
+            renderManifest();
+            persist();
+          });
+        });
+        row.querySelector('[data-del]').addEventListener("click", function(){
+          dest.activities = dest.activities.filter(function(a){ return a.id !== actId; });
+          renderDeck();
+          renderManifest();
+          persist();
+        });
+        var ppBox = row.nextElementSibling;
+        if(ppBox && ppBox.querySelector){
+          var ppInput = ppBox.querySelector('[data-field="perPerson"]');
+          if(ppInput){
+            ppInput.addEventListener("change", function(){
+              act.perPerson = ppInput.checked;
+              updateAllTotals();
+              renderManifest();
+              persist();
+            });
+          }
+        }
+      });
+    });
+  }
+
+  function updateAllTotals(){
+    renderFlaps();
+    var results = state.destinations.map(function(d){ return { dest:d, calc: computeDest(d) }; });
+    var minTotal = Math.min.apply(null, results.map(function(r){ return r.calc.totalJMD; }).filter(function(v){ return v>0; }).concat([Infinity]));
+
+    Array.prototype.forEach.call(deckEl.querySelectorAll(".pass"), function(passEl){
+      var destId = passEl.getAttribute("data-dest");
+      var r = results.find(function(x){ return x.dest.id === destId; });
+      if(!r) return;
+      passEl.querySelector('[data-total="flights"]').textContent = fmtUSD(r.calc.flights);
+      passEl.querySelector('[data-total="accom"]').textContent = fmtUSD(r.calc.accom);
+      passEl.querySelector('[data-total="activities"]').textContent = fmtUSD(r.calc.activities);
+      passEl.querySelector('[data-total="grand"]').textContent = fmtJMD(r.calc.totalJMD) + " ("+fmtUSD(r.calc.totalUSD)+")";
+      passEl.querySelector('[data-total="pp"]').textContent = fmtJMD(r.calc.perPersonJMD) + " / person";
+      passEl.classList.toggle("best", r.calc.totalJMD > 0 && r.calc.totalJMD === minTotal && results.length > 1);
+    });
+  }
+
+  /* ---------------- Manifest / comparison ---------------- */
+  function renderManifest(){
+    var wrap = document.getElementById("manifestWrap");
+    if(state.destinations.length === 0){
+      wrap.innerHTML = '<div class="empty">Add a destination above to start comparing.</div>';
+      return;
+    }
+    var results = state.destinations.map(function(d){ return { dest:d, calc: computeDest(d) }; });
+    var max = Math.max.apply(null, results.map(function(r){ return r.calc.totalJMD; }).concat([1]));
+    var positive = results.filter(function(r){ return r.calc.totalJMD > 0; });
+    var min = positive.length ? Math.min.apply(null, positive.map(function(r){ return r.calc.totalJMD; })) : null;
+
+    var rows = results.map(function(r){
+      var pct = max > 0 ? Math.max(2, (r.calc.totalJMD / max) * 100) : 2;
+      var isBest = min !== null && r.calc.totalJMD === min && results.length > 1;
+      return (
+        '<div class="manifest-row">'+
+          '<div class="manifest-dest"><span class="tag" style="background:'+(isBest?'var(--teal)':'var(--amber)')+'"></span>'+
+            escapeAttr(r.dest.name || "Untitled")+
+            (isBest ? '<span class="best-pill">BEST VALUE</span>' : '')+
+          '</div>'+
+          '<div class="bar-track"><div class="bar-fill'+(isBest?' best':'')+'" style="width:'+pct+'%"></div></div>'+
+          '<div class="manifest-total">'+fmtJMD(r.calc.totalJMD)+'</div>'+
+          '<div class="manifest-pp">'+fmtJMD(r.calc.perPersonJMD)+' pp</div>'+
+        '</div>'
+      );
+    }).join("");
+
+    wrap.innerHTML =
+      '<div class="manifest">'+
+        '<div class="manifest-row head"><div>Destination</div><div>Relative cost</div><div style="text-align:right;">Total (JMD)</div><div style="text-align:right;">Per person</div></div>'+
+        rows+
+      '</div>'+
+      '<p class="breakdown-note">Rate used: 1 USD = '+ (currentRate()>0 ? currentRate().toFixed(2) : "—") +' JMD · '+state.travelers+' traveler(s) · '+state.nights+' night default</p>';
+  }
+
+  /* ---------------- Global controls ---------------- */
+  function renderGlobals(){
+    document.getElementById("nightsDisplay").textContent = state.nights + (state.nights===1 ? " night" : " nights");
+    document.getElementById("travelersDisplay").textContent = state.travelers + (state.travelers===1 ? " person" : " people");
+  }
+
+  document.getElementById("nightsMinus").addEventListener("click", function(){
+    state.nights = Math.max(1, state.nights - 1);
+    syncNightsAndRerender();
+  });
+  document.getElementById("nightsPlus").addEventListener("click", function(){
+    state.nights = Math.min(60, state.nights + 1);
+    syncNightsAndRerender();
+  });
+  document.getElementById("travelersMinus").addEventListener("click", function(){
+    state.travelers = Math.max(1, state.travelers - 1);
+    renderGlobals(); updateAllTotals(); renderManifest(); persist();
+  });
+  document.getElementById("travelersPlus").addEventListener("click", function(){
+    state.travelers = Math.min(20, state.travelers + 1);
+    renderGlobals(); updateAllTotals(); renderManifest(); persist();
+  });
+
+  function syncNightsAndRerender(){
+    renderGlobals();
+    renderDeck();
+    renderManifest();
+    persist();
+  }
+
+  /* ---------------- Manual rate controls ---------------- */
+  var chkManual = document.getElementById("chkManualRate");
+  var manualInput = document.getElementById("manualRateInput");
+  chkManual.addEventListener("change", function(){
+    state.rateManual = chkManual.checked;
+    manualInput.disabled = !state.rateManual;
+    if(state.rateManual && !state.manualRate){
+      state.manualRate = state.rate ? state.rate.toFixed(2) : "";
+      manualInput.value = state.manualRate;
+    }
+    renderRateMeta();
+    updateAllTotals();
+    renderManifest();
+    persist();
+  });
+  manualInput.addEventListener("input", function(){
+    state.manualRate = manualInput.value;
+    updateAllTotals();
+    renderManifest();
+    persist();
+  });
+  document.getElementById("btnRefreshRate").addEventListener("click", fetchRate);
+
+  /* ---------------- Persistence (Claude artifact storage) ---------------- */
+  var STORAGE_KEY = "trip-compare:current";
+  var SCENARIOS_KEY = "trip-compare:scenario-names";
+  var persistTimer = null;
+
+  function persist(){
+    if(!window.storage) return;
+    clearTimeout(persistTimer);
+    persistTimer = setTimeout(function(){
+      window.storage.set(STORAGE_KEY, JSON.stringify(state), false).catch(function(err){
+        console.warn("Autosave failed:", err);
+      });
+    }, 400);
+  }
+
+  function loadPersisted(){
+    if(!window.storage){ afterLoad(); return; }
+    window.storage.get(STORAGE_KEY, false)
+      .then(function(res){
+        if(res && res.value){
+          var saved = JSON.parse(res.value);
+          Object.assign(state, saved);
+        }
+      })
+      .catch(function(){ /* nothing saved yet */ })
+      .finally(afterLoad);
+  }
+
+  function afterLoad(){
+    renderGlobals();
+    renderDeck();
+    renderManifest();
+    if(state.rateManual){
+      chkManual.checked = true;
+      manualInput.disabled = false;
+      manualInput.value = state.manualRate || "";
+    }
+    renderFlaps();
+    renderRateMeta();
+    fetchRate();
+  }
+
+  /* ---------------- Scenarios (save/load named snapshots) ---------------- */
+  document.getElementById("btnSaveScenario").addEventListener("click", function(){
+    if(!window.storage){ toast("Storage isn't available in this view — use Export instead."); return; }
+    var name = prompt("Name this scenario (e.g. \"July long weekend\"):");
+    if(!name) return;
+    var key = "trip-compare:scenario:" + name;
+    window.storage.set(key, JSON.stringify(state), false)
+      .then(function(){
+        return window.storage.get(SCENARIOS_KEY, false).catch(function(){ return null; });
+      })
+      .then(function(res){
+        var names = [];
+        try{ names = res && res.value ? JSON.parse(res.value) : []; }catch(e){ names = []; }
+        if(names.indexOf(name) === -1) names.push(name);
+        return window.storage.set(SCENARIOS_KEY, JSON.stringify(names), false);
+      })
+      .then(function(){ toast('Saved scenario "'+name+'".'); })
+      .catch(function(err){ console.warn(err); toast("Couldn't save — try Export instead."); });
+  });
+
+  document.getElementById("btnLoadScenario").addEventListener("click", function(){
+    if(!window.storage){ toast("Storage isn't available in this view — use Import instead."); return; }
+    window.storage.get(SCENARIOS_KEY, false)
+      .then(function(res){
+        var names = [];
+        try{ names = res && res.value ? JSON.parse(res.value) : []; }catch(e){ names = []; }
+        if(!names.length){ toast("No saved scenarios yet."); return; }
+        var pick = prompt("Load which scenario?\n\n" + names.join("\n"));
+        if(!pick || names.indexOf(pick) === -1) return;
+        return window.storage.get("trip-compare:scenario:" + pick, false).then(function(r){
+          if(r && r.value){
+            var saved = JSON.parse(r.value);
+            Object.assign(state, saved);
+            afterLoad();
+            toast('Loaded "'+pick+'".');
+          }
+        });
+      })
+      .catch(function(err){ console.warn(err); toast("Couldn't load scenarios."); });
+  });
+
+  /* ---------------- Export / Import JSON ---------------- */
+  document.getElementById("btnExport").addEventListener("click", function(){
+    var blob = new Blob([JSON.stringify(state, null, 2)], {type:"application/json"});
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a");
+    a.href = url;
+    a.download = "trip-comparison.json";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    toast("Exported trip-comparison.json");
+  });
+
+  var fileInput = document.getElementById("fileImport");
+  document.getElementById("btnImport").addEventListener("click", function(){ fileInput.click(); });
+  fileInput.addEventListener("change", function(){
+    var file = fileInput.files[0];
+    if(!file) return;
+    var reader = new FileReader();
+    reader.onload = function(){
+      try{
+        var data = JSON.parse(reader.result);
+        Object.assign(state, data);
+        afterLoad();
+        persist();
+        toast("Imported " + file.name);
+      }catch(e){
+        toast("That file didn't look like a valid export.");
+      }
+    };
+    reader.readAsText(file);
+    fileInput.value = "";
+  });
+
+  /* ---------------- Init ---------------- */
+  loadPersisted();
+
+})();
+</script>
+</body>
+</html>
