@@ -1,0 +1,691 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mortgage Calculator</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --ink: #0d1b2e;
+    --ink-mid: #7a93b5;
+    --ink-light: #4a6380;
+    --border: #1e3352;
+    --surface: #0e1c2f;
+    --card: #162540;
+    --white: #dce8f5;
+    --green: #2dd4a0;
+    --green-light: #0a2218;
+    --green-mid: #164030;
+    --gold: #f0b429;
+    --gold-light: #1c2208;
+    --accent: #4d8ef5;
+    --radius: 10px;
+    --mono: 'DM Mono', monospace; --sans: 'DM Sans', sans-serif;
+  }
+  body { font-family: var(--sans); background: var(--surface); color: var(--white); min-height: 100vh; padding: 0; }
+  .header { background: #060f1c; color: var(--white); padding: 2rem 2rem 1.75rem; position: relative; overflow: hidden; border-bottom: 1px solid var(--border); }
+  .header::after { content: ''; position: absolute; right: -60px; top: -60px; width: 260px; height: 260px; border-radius: 50%; background: rgba(77,142,245,0.1); pointer-events: none; }
+  .header-eyebrow { font-family: var(--mono); font-size: 10px; letter-spacing: 0.12em; color: rgba(255,255,255,0.45); text-transform: uppercase; margin-bottom: 0.5rem; }
+  .header h1 { font-size: 1.5rem; font-weight: 600; letter-spacing: -0.02em; line-height: 1.2; margin-bottom: 0.35rem; }
+  .header p { font-size: 13px; color: rgba(255,255,255,0.5); font-weight: 300; }
+  .mode-toggle { display: flex; margin-top: 1.25rem; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; overflow: hidden; width: fit-content; }
+  .mode-btn { font-family: var(--sans); font-size: 12px; font-weight: 500; color: rgba(255,255,255,0.5); background: transparent; border: none; cursor: pointer; padding: 7px 20px; transition: all 0.18s; letter-spacing: 0.02em; }
+  .mode-btn.active { background: rgba(255,255,255,0.15); color: var(--white); }
+  .mode-btn:hover:not(.active) { color: rgba(255,255,255,0.75); }
+  .main { max-width: 960px; margin: 0 auto; padding: 1.5rem 1rem 3rem; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  @media (max-width: 600px) { .grid2 { grid-template-columns: 1fr; } .grid3 { grid-template-columns: 1fr 1fr; } }
+  .section-head { font-family: var(--mono); font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-light); margin: 1.75rem 0 0.75rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--border); }
+  .input-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.1rem; }
+  .input-card-label { font-size: 11px; font-weight: 500; color: var(--ink-mid); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 0.75rem; display: flex; align-items: center; gap: 6px; }
+  .dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+  .dot-blue { background: #4d8ef5; } .dot-red { background: #f5734d; }
+  .field-row { display: flex; align-items: center; }
+  .prefix { font-family: var(--mono); font-size: 13px; color: var(--ink-mid); background: var(--ink); border: 1px solid var(--border); border-right: none; border-radius: var(--radius) 0 0 var(--radius); padding: 0 10px; height: 38px; display: flex; align-items: center; flex-shrink: 0; }
+  input[type="number"] { font-family: var(--mono); font-size: 13px; color: var(--white); background: var(--ink); border: 1px solid var(--border); border-radius: 0 var(--radius) var(--radius) 0; padding: 0 10px; height: 38px; width: 100%; outline: none; transition: border-color 0.15s; -moz-appearance: textfield; }
+  input[type="number"]::-webkit-outer-spin-button, input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; }
+  input[type="number"]:focus { border-color: var(--accent); background: #0a1628; }
+  input[type="number"]:disabled { opacity: 0.35; cursor: not-allowed; }
+  input.solo { border-radius: var(--radius); }
+  .suffix-wrap { position: relative; width: 100%; }
+  .suffix-wrap input { border-radius: var(--radius); padding-right: 32px; }
+  .suffix { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); font-family: var(--mono); font-size: 12px; color: var(--ink-light); pointer-events: none; }
+  .results-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; margin-bottom: 12px; }
+  .results-header { padding: 0.75rem 1rem; border-bottom: 1px solid var(--border); font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-mid); display: flex; align-items: center; gap: 6px; }
+  .result-row { display: flex; justify-content: space-between; align-items: center; padding: 9px 1rem; border-bottom: 1px solid var(--border); font-size: 13px; }
+  .result-row:last-child { border-bottom: none; }
+  .result-label { color: var(--ink-mid); }
+  .result-val { font-family: var(--mono); font-weight: 500; color: var(--white); }
+  .savings-card { background: var(--green-light); border: 1px solid var(--green-mid); border-radius: var(--radius); overflow: hidden; margin-bottom: 12px; }
+  .savings-header { padding: 0.75rem 1rem; border-bottom: 1px solid var(--green-mid); font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--green); }
+  .savings-row { display: flex; justify-content: space-between; align-items: center; padding: 9px 1rem; border-bottom: 1px solid var(--green-mid); font-size: 13px; }
+  .savings-row:last-child { border-bottom: none; }
+  .savings-row .result-val { color: var(--green); }
+  .monthly-hero { background: #060f1c; border: 1px solid var(--border); color: var(--white); border-radius: var(--radius); padding: 1.25rem 1.25rem 1rem; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 1rem; }
+  .monthly-hero-label { font-size: 11px; color: rgba(220,232,245,0.4); margin-bottom: 4px; font-family: var(--mono); letter-spacing: 0.06em; text-transform: uppercase; }
+  .monthly-hero-val { font-family: var(--mono); font-size: 26px; font-weight: 500; letter-spacing: -0.02em; color: var(--accent); }
+  .monthly-hero-sub { font-size: 11px; color: rgba(220,232,245,0.35); margin-top: 3px; }
+  .monthly-badge { background: rgba(77,142,245,0.1); border: 1px solid rgba(77,142,245,0.25); border-radius: 6px; padding: 0.5rem 0.75rem; text-align: right; }
+  .monthly-badge-label { font-size: 10px; color: rgba(220,232,245,0.4); margin-bottom: 2px; }
+  .monthly-badge-val { font-family: var(--mono); font-size: 14px; font-weight: 500; }
+  .phase-note { font-size: 11.5px; color: var(--gold); background: var(--gold-light); border: 1px solid #5a4a10; border-radius: 7px; padding: 8px 12px; margin-bottom: 12px; }
+  .chart-wrap { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem; }
+  .chart-legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 11px; color: var(--ink-mid); margin-bottom: 10px; }
+  .chart-legend span { display: flex; align-items: center; gap: 5px; }
+  .leg-swatch { width: 24px; height: 2px; border-radius: 2px; flex-shrink: 0; }
+  .hidden { display: none !important; }
+
+  /* Closing costs */
+  .cc-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
+  @media (max-width: 600px) { .cc-grid { grid-template-columns: 1fr; } }
+  .cc-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 1rem; border-bottom: 1px solid var(--border); font-size: 13px; }
+  .cc-row:last-child { border-bottom: none; }
+  .cc-label { color: var(--ink-mid); font-size: 12.5px; }
+  .cc-val { font-family: var(--mono); font-weight: 500; font-size: 13px; color: var(--white); }
+  .cc-input-row { display: flex; align-items: center; gap: 6px; }
+  .cc-tag { font-size: 10px; padding: 1px 6px; border-radius: 4px; background: var(--ink); color: var(--ink-light); border: 1px solid var(--border); flex-shrink: 0; }
+  .cc-total-box { background: #060f1c; border: 1px solid var(--border); color: var(--white); border-radius: var(--radius); padding: 1.25rem 1.25rem 1rem; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 1rem; }
+  .cc-total-label { font-size: 11px; color: rgba(220,232,245,0.4); margin-bottom: 4px; font-family: var(--mono); letter-spacing: 0.06em; text-transform: uppercase; }
+  .cc-total-val { font-family: var(--mono); font-size: 26px; font-weight: 500; letter-spacing: -0.02em; color: var(--accent); }
+  .cc-total-sub { font-size: 11px; color: rgba(220,232,245,0.35); margin-top: 3px; }
+  .cc-breakdown { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+  .cc-breakdown-header { padding: 0.75rem 1rem; border-bottom: 1px solid var(--border); font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-mid); }
+  .cc-subtotal { background: var(--surface); font-weight: 600; }
+  .cc-grand { background: #0e1f3a; font-weight: 700; }
+  .cc-grand .cc-val { color: var(--accent); }
+  .custom-field { display: flex; gap: 8px; align-items: center; }
+  .custom-field input[type="text"] { font-family: var(--sans); font-size: 12px; color: var(--white); background: var(--ink); border: 1px solid var(--border); border-radius: var(--radius); padding: 0 10px; height: 34px; flex: 1; outline: none; transition: border-color 0.15s; }
+  .custom-field input[type="text"]:focus { border-color: var(--accent); background: #0a1628; }
+  .custom-field input[type="number"] { border-radius: var(--radius) !important; height: 34px; width: 130px; flex-shrink: 0; }
+
+  /* Closing costs banner */
+  .cc-banner { background: linear-gradient(135deg, #0e2246 0%, #0a1a38 100%); border: 1px solid #2a4a7a; border-radius: var(--radius); padding: 1.75rem 1.5rem; margin: 2.5rem 0 1.25rem; display: flex; align-items: center; gap: 1.25rem; }
+  .cc-banner-icon { font-size: 2rem; flex-shrink: 0; }
+  .cc-banner-eyebrow { font-family: var(--mono); font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent); margin-bottom: 0.3rem; }
+  .cc-banner-title { font-size: 1.35rem; font-weight: 600; color: var(--white); letter-spacing: -0.02em; line-height: 1.2; }
+  .cc-banner-sub { font-size: 12px; color: var(--ink-mid); margin-top: 0.3rem; }
+
+  .footer { text-align: center; font-size: 11px; color: #3a5570; margin-top: 2.5rem; font-family: var(--mono); }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-eyebrow">Mortgage Calculator</div>
+  <h1>Padrino Mortgage Analyser</h1>
+  <p>Adjust any variable to see the full repayment picture</p>
+  <div class="mode-toggle">
+    <button class="mode-btn active" id="btn1" onclick="setMode(1)">Single Loan</button>
+    <button class="mode-btn" id="btn2" onclick="setMode(2)">Dual Loan</button>
+  </div>
+</div>
+
+<div class="main">
+
+  <div class="section-head">Property &amp; deposit</div>
+  <div class="grid3" style="margin-bottom:12px;">
+    <div class="input-card">
+      <div class="input-card-label">Property value</div>
+      <div class="field-row">
+        <div class="prefix">$</div>
+        <input type="number" id="propValue" value="38000000" step="500000">
+      </div>
+    </div>
+    <div class="input-card">
+      <div class="input-card-label">Deposit</div>
+      <div class="suffix-wrap">
+        <input type="number" class="solo" id="depositPct" value="5" min="0" max="99" step="0.5">
+        <span class="suffix">%</span>
+      </div>
+    </div>
+    <div class="input-card" style="background:var(--ink);border-color:var(--border);">
+      <div class="input-card-label">Deposit amount</div>
+      <div style="font-family:var(--mono);font-size:18px;font-weight:500;margin-top:4px;color:var(--accent);" id="depositAmt">—</div>
+      <div style="font-size:11px;color:var(--ink-light);margin-top:4px;" id="totalFinanced">Total financed: —</div>
+    </div>
+  </div>
+
+  <div class="section-head" id="l1Head">Loan</div>
+  <div class="grid3" style="margin-bottom:12px;">
+    <div class="input-card" id="l1PrincipalCard">
+      <div class="input-card-label"><span class="dot dot-blue"></span> <span id="l1PrincipalLabel">Principal (= total financed)</span></div>
+      <div id="l1PrincipalAuto" style="font-family:var(--mono);font-size:18px;font-weight:500;margin-top:4px;color:var(--accent);">—</div>
+      <div class="field-row hidden" id="l1PrincipalInputRow">
+        <div class="prefix">$</div>
+        <input type="number" id="l1Principal" value="17000000" step="500000">
+      </div>
+    </div>
+    <div class="input-card">
+      <div class="input-card-label"><span class="dot dot-blue"></span> Interest rate</div>
+      <div class="suffix-wrap">
+        <input type="number" class="solo" id="l1Rate" value="5" step="0.25" min="0">
+        <span class="suffix">%</span>
+      </div>
+    </div>
+    <div class="input-card">
+      <div class="input-card-label"><span class="dot dot-blue"></span> Term</div>
+      <div class="suffix-wrap">
+        <input type="number" class="solo" id="l1Years" value="40" min="1" max="50" step="1">
+        <span class="suffix">yrs</span>
+      </div>
+    </div>
+  </div>
+
+  <div id="l2Section" class="hidden">
+    <div class="section-head">Loan 2 <span style="font-weight:300;text-transform:none;letter-spacing:0;">&nbsp;— balance auto-calculated</span></div>
+    <div class="grid3" style="margin-bottom:12px;">
+      <div class="input-card" style="background:var(--ink);border-color:var(--border);">
+        <div class="input-card-label"><span class="dot dot-red"></span> Principal (auto)</div>
+        <div style="font-family:var(--mono);font-size:18px;font-weight:500;margin-top:4px;color:#f5734d;" id="l2PrincipalDisp">—</div>
+      </div>
+      <div class="input-card">
+        <div class="input-card-label"><span class="dot dot-red"></span> Interest rate</div>
+        <div class="suffix-wrap">
+          <input type="number" class="solo" id="l2Rate" value="8.5" step="0.25" min="0">
+          <span class="suffix">%</span>
+        </div>
+      </div>
+      <div class="input-card">
+        <div class="input-card-label"><span class="dot dot-red"></span> Term</div>
+        <div class="suffix-wrap">
+          <input type="number" class="solo" id="l2Years" value="35" min="1" max="50" step="1">
+          <span class="suffix">yrs</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section-head">Results</div>
+  <div id="phaseNote" class="phase-note hidden"></div>
+
+  <div class="monthly-hero">
+    <div>
+      <div class="monthly-hero-label" id="heroLabel">Monthly payment</div>
+      <div class="monthly-hero-val" id="heroMonthly">—</div>
+      <div class="monthly-hero-sub" id="heroSub">—</div>
+    </div>
+    <div class="monthly-badge">
+      <div class="monthly-badge-label" id="tailLabel">After payoff</div>
+      <div class="monthly-badge-val" id="heroTail">—</div>
+      <div style="font-size:10px;color:rgba(255,255,255,0.35);margin-top:2px;" id="tailYears">—</div>
+    </div>
+  </div>
+
+  <div id="singleResults">
+    <div class="results-card">
+      <div class="results-header"><span class="dot dot-blue"></span> Loan summary</div>
+      <div class="result-row"><span class="result-label">Principal</span><span class="result-val" id="r-s-principal">—</span></div>
+      <div class="result-row"><span class="result-label">Monthly payment</span><span class="result-val" id="r-s-monthly">—</span></div>
+      <div class="result-row"><span class="result-label">Total interest</span><span class="result-val" id="r-s-interest">—</span></div>
+      <div class="result-row"><span class="result-label">Total repaid</span><span class="result-val" id="r-s-total">—</span></div>
+      <div class="result-row"><span class="result-label">Interest-to-principal ratio</span><span class="result-val" id="r-s-ratio">—</span></div>
+    </div>
+  </div>
+
+  <div id="dualResults" class="hidden">
+    <div class="grid2">
+      <div class="results-card">
+        <div class="results-header"><span class="dot dot-blue"></span> Loan 1</div>
+        <div class="result-row"><span class="result-label">Monthly payment</span><span class="result-val" id="r-l1monthly">—</span></div>
+        <div class="result-row"><span class="result-label">Total interest</span><span class="result-val" id="r-l1interest">—</span></div>
+        <div class="result-row"><span class="result-label">Total repaid</span><span class="result-val" id="r-l1total">—</span></div>
+      </div>
+      <div class="results-card">
+        <div class="results-header"><span class="dot dot-red"></span> Loan 2</div>
+        <div class="result-row"><span class="result-label">Monthly payment</span><span class="result-val" id="r-l2monthly">—</span></div>
+        <div class="result-row"><span class="result-label">Total interest</span><span class="result-val" id="r-l2interest">—</span></div>
+        <div class="result-row"><span class="result-label">Total repaid</span><span class="result-val" id="r-l2total">—</span></div>
+      </div>
+    </div>
+    <div class="results-card">
+      <div class="results-header">Combined summary</div>
+      <div class="result-row"><span class="result-label">Total interest (both loans)</span><span class="result-val" id="r-totalInterest">—</span></div>
+      <div class="result-row"><span class="result-label">Total repaid (principal + interest)</span><span class="result-val" id="r-totalRepaid">—</span></div>
+      <div class="result-row"><span class="result-label">Effective blended rate</span><span class="result-val" id="r-blended">—</span></div>
+      <div class="result-row"><span class="result-label">Interest-to-principal ratio</span><span class="result-val" id="r-ratio">—</span></div>
+    </div>
+  </div>
+
+  <div id="savingsSection" class="hidden">
+    <div class="section-head">Preferential loan savings <span style="font-weight:300;text-transform:none;letter-spacing:0;">&nbsp;— vs financing full amount at Loan 2's rate</span></div>
+    <div class="savings-card">
+      <div class="savings-header">💰 Savings from lower-rate tranche</div>
+      <div class="savings-row"><span class="result-label">Without preferential loan (full amount @ Loan 2 rate)</span><span class="result-val" id="s-baseline">—</span></div>
+      <div class="savings-row"><span class="result-label">Monthly saving</span><span class="result-val" id="s-monthly">—</span></div>
+      <div class="savings-row"><span class="result-label">Annual saving</span><span class="result-val" id="s-annual">—</span></div>
+      <div class="savings-row"><span class="result-label">Total interest saving over loan life</span><span class="result-val" id="s-interest">—</span></div>
+      <div class="savings-row"><span class="result-label">Total repayment saving</span><span class="result-val" id="s-total">—</span></div>
+    </div>
+  </div>
+
+  <div class="section-head">Balance over time</div>
+  <div class="chart-wrap">
+    <div class="chart-legend">
+      <span><span class="leg-swatch" style="background:#378ADD;"></span><span id="leg1label">Loan</span></span>
+      <span id="leg-l2" class="hidden"><span class="leg-swatch" style="background:#D85A30;"></span>Loan 2</span>
+      <span id="leg-combined" class="hidden"><span class="leg-swatch" style="background:#888780;"></span>Combined</span>
+    </div>
+    <div style="position:relative;width:100%;height:240px;">
+      <canvas id="balChart"></canvas>
+    </div>
+  </div>
+
+  <!-- CLOSING COSTS -->
+  <div class="cc-banner">
+    <div class="cc-banner-icon">🏠</div>
+    <div>
+      <div class="cc-banner-eyebrow">Upfront costs</div>
+      <div class="cc-banner-title">Closing Costs</div>
+      <div class="cc-banner-sub">Standard across both loan scenarios · all figures are editable</div>
+    </div>
+  </div>
+
+  <div class="cc-grid">
+    <!-- Col 1 -->
+    <div style="display:flex;flex-direction:column;gap:10px;">
+
+      <div class="input-card">
+        <div class="input-card-label">Transfer Tax</div>
+        <div class="cc-input-row">
+          <div class="suffix-wrap" style="max-width:100px;">
+            <input type="number" class="solo cc-inp" id="cc-transferTaxPct" value="0.05" step="0.01" min="0">
+            <span class="suffix">%</span>
+          </div>
+          <span class="cc-tag">of property value</span>
+          <span class="cc-val" id="cc-transferTaxAmt" style="margin-left:auto;">—</span>
+        </div>
+      </div>
+
+      <div class="input-card">
+        <div class="input-card-label">Title Registration Fee</div>
+        <div class="cc-input-row">
+          <div class="suffix-wrap" style="max-width:100px;">
+            <input type="number" class="solo cc-inp" id="cc-titleRegPct" value="0.25" step="0.01" min="0">
+            <span class="suffix">%</span>
+          </div>
+          <span class="cc-tag">of property value</span>
+          <span class="cc-val" id="cc-titleRegAmt" style="margin-left:auto;">—</span>
+        </div>
+      </div>
+
+      <div class="input-card">
+        <div class="input-card-label">Attorney Fee</div>
+        <div class="cc-input-row">
+          <div class="suffix-wrap" style="max-width:100px;">
+            <input type="number" class="solo cc-inp" id="cc-attorneyPct" value="1" step="0.1" min="0">
+            <span class="suffix">%</span>
+          </div>
+          <span class="cc-tag">of property value</span>
+          <span class="cc-val" id="cc-attorneyAmt" style="margin-left:auto;">—</span>
+        </div>
+      </div>
+
+      <div class="input-card">
+        <div class="input-card-label">Loan Processing Fee (Bank)</div>
+        <div class="cc-input-row">
+          <div class="suffix-wrap" style="max-width:100px;">
+            <input type="number" class="solo cc-inp" id="cc-loanFeeP" value="2" step="0.1" min="0">
+            <span class="suffix">%</span>
+          </div>
+          <span class="cc-tag">of total loan</span>
+          <span class="cc-val" id="cc-loanFeeAmt" style="margin-left:auto;">—</span>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Col 2 -->
+    <div style="display:flex;flex-direction:column;gap:10px;">
+
+      <div class="input-card">
+        <div class="input-card-label" style="margin-bottom:0.5rem;">Fixed fees</div>
+        <div class="cc-row" style="padding:5px 0;">
+          <span class="cc-label">50% Stamp Duty</span>
+          <div class="field-row" style="gap:4px;"><div class="prefix" style="height:30px;font-size:12px;">$</div><input type="number" id="cc-stampDuty" value="2500" class="cc-inp" style="height:30px;font-size:12px;width:100px;border-radius:0 6px 6px 0;"></div>
+        </div>
+        <div class="cc-row" style="padding:5px 0;">
+          <span class="cc-label">Letters of Possession</span>
+          <div class="field-row" style="gap:4px;"><div class="prefix" style="height:30px;font-size:12px;">$</div><input type="number" id="cc-lettersPossession" value="11500" class="cc-inp" style="height:30px;font-size:12px;width:100px;border-radius:0 6px 6px 0;"></div>
+        </div>
+        <div class="cc-row" style="padding:5px 0;">
+          <span class="cc-label">Mortgage Registration Fee</span>
+          <div class="field-row" style="gap:4px;"><div class="prefix" style="height:30px;font-size:12px;">$</div><input type="number" id="cc-mortgageReg" value="2000" class="cc-inp" style="height:30px;font-size:12px;width:100px;border-radius:0 6px 6px 0;"></div>
+        </div>
+        <div class="cc-row" style="padding:5px 0;">
+          <span class="cc-label">Valuator's Report</span>
+          <div class="field-row" style="gap:4px;"><div class="prefix" style="height:30px;font-size:12px;">$</div><input type="number" id="cc-valuator" value="60000" class="cc-inp" style="height:30px;font-size:12px;width:100px;border-radius:0 6px 6px 0;"></div>
+        </div>
+        <div class="cc-row" style="padding:5px 0;">
+          <span class="cc-label">Surveyor ID Report</span>
+          <div class="field-row" style="gap:4px;"><div class="prefix" style="height:30px;font-size:12px;">$</div><input type="number" id="cc-surveyor" value="45000" class="cc-inp" style="height:30px;font-size:12px;width:100px;border-radius:0 6px 6px 0;"></div>
+        </div>
+      </div>
+
+      <div class="input-card">
+        <div class="input-card-label" style="margin-bottom:0.5rem;">Attorney fees (fixed)</div>
+        <div class="cc-row" style="padding:5px 0;">
+          <span class="cc-label">Letters of Possession</span>
+          <div class="field-row" style="gap:4px;"><div class="prefix" style="height:30px;font-size:12px;">$</div><input type="number" id="cc-attLOP" value="8625" class="cc-inp" style="height:30px;font-size:12px;width:100px;border-radius:0 6px 6px 0;"></div>
+        </div>
+        <div class="cc-row" style="padding:5px 0;">
+          <span class="cc-label">Agreement for Sale</span>
+          <div class="field-row" style="gap:4px;"><div class="prefix" style="height:30px;font-size:12px;">$</div><input type="number" id="cc-attAFS" value="59512.50" class="cc-inp" style="height:30px;font-size:12px;width:100px;border-radius:0 6px 6px 0;"></div>
+        </div>
+        <div class="cc-row" style="padding:5px 0;border-bottom:none;">
+          <span class="cc-label">Owner's Agreement</span>
+          <div class="field-row" style="gap:4px;"><div class="prefix" style="height:30px;font-size:12px;">$</div><input type="number" id="cc-attOA" value="34500" class="cc-inp" style="height:30px;font-size:12px;width:100px;border-radius:0 6px 6px 0;"></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Custom / other costs -->
+  <div class="input-card" style="margin-bottom:12px;">
+    <div class="input-card-label" style="margin-bottom:0.75rem;">Other costs <span style="text-transform:none;font-weight:400;letter-spacing:0;color:var(--ink-light);">&nbsp;— add anything not listed above</span></div>
+    <div id="customCosts" style="display:flex;flex-direction:column;gap:8px;">
+      <!-- 4 blank rows pre-populated -->
+    </div>
+  </div>
+
+  <!-- Closing costs summary -->
+  <div class="cc-total-box">
+    <div>
+      <div class="cc-total-label">Total upfront costs</div>
+      <div class="cc-total-val" id="cc-grandTotal">—</div>
+      <div class="cc-total-sub" id="cc-grandSub">Deposit + all closing costs</div>
+    </div>
+    <div style="text-align:right;">
+      <div style="font-size:10px;color:rgba(255,255,255,0.4);margin-bottom:3px;">Closing costs only</div>
+      <div style="font-family:var(--mono);font-size:14px;font-weight:500;" id="cc-closingOnly">—</div>
+      <div style="font-size:10px;color:rgba(255,255,255,0.35);margin-top:2px;">excl. deposit</div>
+    </div>
+  </div>
+
+  <div class="cc-breakdown">
+    <div class="cc-breakdown-header">Cost breakdown</div>
+    <div class="cc-row"><span class="cc-label">Deposit</span><span class="cc-val" id="ccb-deposit">—</span></div>
+    <div class="cc-row"><span class="cc-label">Transfer Tax (0.05%)</span><span class="cc-val" id="ccb-transferTax">—</span></div>
+    <div class="cc-row"><span class="cc-label">50% Stamp Duty</span><span class="cc-val" id="ccb-stampDuty">—</span></div>
+    <div class="cc-row"><span class="cc-label">Title Registration Fee (0.25%)</span><span class="cc-val" id="ccb-titleReg">—</span></div>
+    <div class="cc-row"><span class="cc-label">Letters of Possession</span><span class="cc-val" id="ccb-lop">—</span></div>
+    <div class="cc-row"><span class="cc-label">Mortgage Registration Fee</span><span class="cc-val" id="ccb-mortgageReg">—</span></div>
+    <div class="cc-row"><span class="cc-label">Valuator's Report</span><span class="cc-val" id="ccb-valuator">—</span></div>
+    <div class="cc-row"><span class="cc-label">Surveyor ID Report</span><span class="cc-val" id="ccb-surveyor">—</span></div>
+    <div class="cc-row"><span class="cc-label">Attorney Fee — Letters of Possession</span><span class="cc-val" id="ccb-attLOP">—</span></div>
+    <div class="cc-row"><span class="cc-label">Attorney Fee — Agreement for Sale</span><span class="cc-val" id="ccb-attAFS">—</span></div>
+    <div class="cc-row"><span class="cc-label">Attorney Fee — Owner's Agreement</span><span class="cc-val" id="ccb-attOA">—</span></div>
+    <div class="cc-row"><span class="cc-label">Attorney Fee (1%)</span><span class="cc-val" id="ccb-attorney">—</span></div>
+    <div class="cc-row"><span class="cc-label">Loan Processing Fee (Bank, 2%)</span><span class="cc-val" id="ccb-loanFee">—</span></div>
+    <div class="cc-row cc-subtotal"><span class="cc-label">Other costs</span><span class="cc-val" id="ccb-other">—</span></div>
+    <div class="cc-row cc-grand"><span class="cc-label">Total upfront (deposit + closing)</span><span class="cc-val" id="ccb-grand">—</span></div>
+  </div>
+
+  <div class="footer" style="margin-top:2rem;">Figures are indicative. All amounts in JMD. Assumes fixed rates throughout. Closing costs are estimates — confirm with your attorney and lender.</div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script>
+let chart = null;
+let mode = 1;
+
+function setMode(m) {
+  mode = m;
+  document.getElementById('btn1').classList.toggle('active', m === 1);
+  document.getElementById('btn2').classList.toggle('active', m === 2);
+
+  const dual = m === 2;
+  document.getElementById('l2Section').classList.toggle('hidden', !dual);
+  document.getElementById('dualResults').classList.toggle('hidden', !dual);
+  document.getElementById('singleResults').classList.toggle('hidden', dual);
+  document.getElementById('savingsSection').classList.toggle('hidden', !dual);
+  document.getElementById('leg-l2').classList.toggle('hidden', !dual);
+  document.getElementById('leg-combined').classList.toggle('hidden', !dual);
+
+  if (dual) {
+    document.getElementById('l1Head').textContent = 'Loan 1';
+    document.getElementById('l1PrincipalLabel').textContent = 'Principal';
+    document.getElementById('l1PrincipalAuto').classList.add('hidden');
+    document.getElementById('l1PrincipalInputRow').classList.remove('hidden');
+    document.getElementById('heroLabel').textContent = 'Combined monthly (active period)';
+    document.getElementById('leg1label').textContent = 'Loan 1';
+  } else {
+    document.getElementById('l1Head').textContent = 'Loan';
+    document.getElementById('l1PrincipalLabel').textContent = 'Principal (= total financed)';
+    document.getElementById('l1PrincipalAuto').classList.remove('hidden');
+    document.getElementById('l1PrincipalInputRow').classList.add('hidden');
+    document.getElementById('heroLabel').textContent = 'Monthly payment';
+    document.getElementById('leg1label').textContent = 'Loan';
+  }
+  calc();
+}
+
+function mp(p, r, y) {
+  const rm = r / 100 / 12, n = y * 12;
+  if (rm === 0) return p / n;
+  return p * rm * Math.pow(1+rm,n) / (Math.pow(1+rm,n)-1);
+}
+function bal(p, r, y, atY) {
+  const rm = r/100/12, n = y*12, m = mp(p,r,y), k = atY*12;
+  if (rm === 0) return Math.max(0, p - m*k);
+  return Math.max(0, p*Math.pow(1+rm,k) - m*(Math.pow(1+rm,k)-1)/rm);
+}
+function fmt(n) {
+  if (isNaN(n)||!isFinite(n)) return '—';
+  return '$' + Math.round(Math.abs(n)).toLocaleString();
+}
+
+function calc() {
+  const propVal = parseFloat(document.getElementById('propValue').value)||0;
+  const depPct  = parseFloat(document.getElementById('depositPct').value)||0;
+  const l1R     = parseFloat(document.getElementById('l1Rate').value)||0;
+  const l1Y     = parseInt(document.getElementById('l1Years').value)||0;
+  const deposit = propVal * depPct / 100;
+  const totalFin= propVal - deposit;
+
+  document.getElementById('depositAmt').textContent    = fmt(deposit);
+  document.getElementById('totalFinanced').textContent = 'Total financed: ' + fmt(totalFin);
+
+  if (mode === 1) {
+    const l1P = totalFin;
+    document.getElementById('l1PrincipalAuto').textContent = fmt(l1P);
+    const m1 = mp(l1P,l1R,l1Y), t1 = m1*l1Y*12, i1 = t1-l1P;
+
+    document.getElementById('heroMonthly').textContent = fmt(m1);
+    document.getElementById('heroSub').textContent     = l1Y+'-year term · '+l1R+'% p.a.';
+    document.getElementById('heroTail').textContent    = '$0';
+    document.getElementById('tailLabel').textContent   = 'After yr '+l1Y;
+    document.getElementById('tailYears').textContent   = 'Fully paid off';
+    document.getElementById('phaseNote').classList.add('hidden');
+
+    document.getElementById('r-s-principal').textContent = fmt(l1P);
+    document.getElementById('r-s-monthly').textContent   = fmt(m1);
+    document.getElementById('r-s-interest').textContent  = fmt(i1);
+    document.getElementById('r-s-total').textContent     = fmt(t1);
+    document.getElementById('r-s-ratio').textContent     = l1P>0 ? (i1/l1P*100).toFixed(1)+'% of principal' : '—';
+
+    const labels=[], bd1=[];
+    for (let yr=0;yr<=l1Y;yr++) { labels.push('Yr '+yr); bd1.push(+(bal(l1P,l1R,l1Y,yr)/1e6).toFixed(2)); }
+    drawChart(labels, bd1, null, null);
+
+  } else {
+    const l1P = parseFloat(document.getElementById('l1Principal').value)||0;
+    const l2R = parseFloat(document.getElementById('l2Rate').value)||0;
+    const l2Y = parseInt(document.getElementById('l2Years').value)||0;
+    const l2P = Math.max(0, totalFin-l1P);
+
+    document.getElementById('l2PrincipalDisp').textContent = fmt(l2P);
+
+    const m1=mp(l1P,l1R,l1Y), m2=mp(l2P,l2R,l2Y);
+    const t1=m1*l1Y*12, t2=m2*l2Y*12, i1=t1-l1P, i2=t2-l2P;
+
+    document.getElementById('r-l1monthly').textContent  = fmt(m1);
+    document.getElementById('r-l1interest').textContent = fmt(i1);
+    document.getElementById('r-l1total').textContent    = fmt(t1);
+    document.getElementById('r-l2monthly').textContent  = fmt(m2);
+    document.getElementById('r-l2interest').textContent = fmt(i2);
+    document.getElementById('r-l2total').textContent    = fmt(t2);
+    document.getElementById('r-totalInterest').textContent = fmt(i1+i2);
+    document.getElementById('r-totalRepaid').textContent   = fmt(t1+t2);
+    const blended = totalFin>0 ? (l1P*l1R+l2P*l2R)/totalFin : 0;
+    document.getElementById('r-blended').textContent = blended.toFixed(2)+'% p.a.';
+    document.getElementById('r-ratio').textContent   = totalFin>0 ? ((i1+i2)/totalFin*100).toFixed(1)+'% of principal' : '—';
+
+    document.getElementById('heroMonthly').textContent = fmt(m1+m2);
+    const maxY=Math.max(l1Y,l2Y), minY=Math.min(l1Y,l2Y);
+    const phaseNote = document.getElementById('phaseNote');
+    if (l1Y!==l2Y) {
+      phaseNote.classList.remove('hidden');
+      const longer=l1Y>l2Y?'Loan 1':'Loan 2', shorter=l1Y<l2Y?'Loan 1':'Loan 2';
+      phaseNote.textContent = 'Mixed tenures — '+shorter+' clears at year '+minY+'. '+longer+' continues alone until year '+maxY+'.';
+      document.getElementById('heroSub').textContent   = 'Years 1–'+minY+', both loans active';
+      document.getElementById('heroTail').textContent  = fmt(l1Y>l2Y?m1:m2);
+      document.getElementById('tailLabel').textContent = 'Yrs '+(minY+1)+'–'+maxY;
+      document.getElementById('tailYears').textContent = longer+' only';
+    } else {
+      phaseNote.classList.add('hidden');
+      document.getElementById('heroSub').textContent   = 'Years 1–'+l1Y+', both loans active';
+      document.getElementById('heroTail').textContent  = '$0';
+      document.getElementById('tailLabel').textContent = 'After yr '+l1Y;
+      document.getElementById('tailYears').textContent = 'Fully paid off';
+    }
+
+    const bM=mp(totalFin,l2R,l2Y), bT=bM*l2Y*12, bI=bT-totalFin;
+    document.getElementById('s-baseline').textContent = fmt(bM)+'/mo';
+    document.getElementById('s-monthly').textContent  = fmt(bM-(m1+m2));
+    document.getElementById('s-annual').textContent   = fmt((bM-(m1+m2))*12);
+    document.getElementById('s-interest').textContent = fmt(bI-(i1+i2));
+    document.getElementById('s-total').textContent    = fmt(bT-(t1+t2));
+
+    const labels=[], bd1=[], bd2=[], bdC=[];
+    for (let yr=0;yr<=maxY;yr++) {
+      labels.push('Yr '+yr);
+      const b1=bal(l1P,l1R,l1Y,yr), b2=bal(l2P,l2R,l2Y,yr);
+      bd1.push(+(b1/1e6).toFixed(2));
+      bd2.push(+(b2/1e6).toFixed(2));
+      bdC.push(+((b1+b2)/1e6).toFixed(2));
+    }
+    drawChart(labels, bd1, bd2, bdC);
+  }
+}
+
+function drawChart(labels, bd1, bd2, bdC) {
+  const datasets = [{ label:'Loan 1', data:bd1, borderColor:'#378ADD', backgroundColor:'transparent', borderWidth:2, pointRadius:0 }];
+  if (bd2) datasets.push({ label:'Loan 2', data:bd2, borderColor:'#D85A30', backgroundColor:'transparent', borderWidth:2, pointRadius:0, borderDash:[5,3] });
+  if (bdC) datasets.push({ label:'Combined', data:bdC, borderColor:'#888780', backgroundColor:'transparent', borderWidth:1.5, pointRadius:0, borderDash:[2,2] });
+  if (chart) chart.destroy();
+  chart = new Chart(document.getElementById('balChart'), {
+    type:'line', data:{labels,datasets},
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{display:false}, tooltip:{callbacks:{label:ctx=>ctx.dataset.label+': $'+ctx.parsed.y.toFixed(2)+'M'}} },
+      scales:{
+        x:{ticks:{autoSkip:true,maxTicksLimit:10,font:{size:11},color:'#4a6380'},grid:{display:false}},
+        y:{ticks:{font:{size:11},color:'#4a6380',callback:v=>'$'+v+'M'},grid:{color:'rgba(255,255,255,0.05)'}}
+      }
+    }
+  });
+}
+
+// Closing costs calc
+function calcCC() {
+  const propVal  = parseFloat(document.getElementById('propValue').value)||0;
+  const depPct   = parseFloat(document.getElementById('depositPct').value)||0;
+  const deposit  = propVal * depPct / 100;
+  const totalFin = propVal - deposit;
+
+  // % of property value
+  const transferTaxPct = parseFloat(document.getElementById('cc-transferTaxPct').value)||0;
+  const titleRegPct    = parseFloat(document.getElementById('cc-titleRegPct').value)||0;
+  const attorneyPct    = parseFloat(document.getElementById('cc-attorneyPct').value)||0;
+  const loanFeePct     = parseFloat(document.getElementById('cc-loanFeeP').value)||0;
+
+  const transferTax = propVal * transferTaxPct / 100;
+  const titleReg    = propVal * titleRegPct / 100;
+  const attorney    = propVal * attorneyPct / 100;
+  const loanFee     = totalFin * loanFeePct / 100;
+
+  // Update inline calc displays
+  document.getElementById('cc-transferTaxAmt').textContent = fmt(transferTax);
+  document.getElementById('cc-titleRegAmt').textContent    = fmt(titleReg);
+  document.getElementById('cc-attorneyAmt').textContent    = fmt(attorney);
+  document.getElementById('cc-loanFeeAmt').textContent     = fmt(loanFee);
+
+  // Fixed fees
+  const stampDuty       = parseFloat(document.getElementById('cc-stampDuty').value)||0;
+  const lettersPoss     = parseFloat(document.getElementById('cc-lettersPossession').value)||0;
+  const mortgageReg     = parseFloat(document.getElementById('cc-mortgageReg').value)||0;
+  const valuator        = parseFloat(document.getElementById('cc-valuator').value)||0;
+  const surveyor        = parseFloat(document.getElementById('cc-surveyor').value)||0;
+  const attLOP          = parseFloat(document.getElementById('cc-attLOP').value)||0;
+  const attAFS          = parseFloat(document.getElementById('cc-attAFS').value)||0;
+  const attOA           = parseFloat(document.getElementById('cc-attOA').value)||0;
+
+  // Custom / other costs
+  let otherTotal = 0;
+  document.querySelectorAll('.custom-amt').forEach(el => {
+    otherTotal += parseFloat(el.value)||0;
+  });
+
+  const closingOnly = transferTax + stampDuty + titleReg + lettersPoss + mortgageReg +
+                      valuator + surveyor + attLOP + attAFS + attOA + attorney + loanFee + otherTotal;
+  const grandTotal  = deposit + closingOnly;
+
+  // Hero
+  document.getElementById('cc-grandTotal').textContent  = fmt(grandTotal);
+  document.getElementById('cc-closingOnly').textContent = fmt(closingOnly);
+
+  // Breakdown
+  document.getElementById('ccb-deposit').textContent     = fmt(deposit);
+  document.getElementById('ccb-transferTax').textContent = fmt(transferTax);
+  document.getElementById('ccb-stampDuty').textContent   = fmt(stampDuty);
+  document.getElementById('ccb-titleReg').textContent    = fmt(titleReg);
+  document.getElementById('ccb-lop').textContent         = fmt(lettersPoss);
+  document.getElementById('ccb-mortgageReg').textContent = fmt(mortgageReg);
+  document.getElementById('ccb-valuator').textContent    = fmt(valuator);
+  document.getElementById('ccb-surveyor').textContent    = fmt(surveyor);
+  document.getElementById('ccb-attLOP').textContent      = fmt(attLOP);
+  document.getElementById('ccb-attAFS').textContent      = fmt(attAFS);
+  document.getElementById('ccb-attOA').textContent       = fmt(attOA);
+  document.getElementById('ccb-attorney').textContent    = fmt(attorney);
+  document.getElementById('ccb-loanFee').textContent     = fmt(loanFee);
+  document.getElementById('ccb-other').textContent       = otherTotal > 0 ? fmt(otherTotal) : '—';
+  document.getElementById('ccb-grand').textContent       = fmt(grandTotal);
+}
+
+// Build 4 blank custom cost rows
+function buildCustomRows() {
+  const container = document.getElementById('customCosts');
+  for (let i = 0; i < 4; i++) {
+    const div = document.createElement('div');
+    div.className = 'custom-field';
+    div.innerHTML = `
+      <input type="text" placeholder="Description (optional)" class="custom-desc">
+      <div class="prefix" style="height:34px;font-size:12px;">$</div>
+      <input type="number" class="custom-amt cc-inp" value="" min="0" step="100" placeholder="0" style="border-radius:0 6px 6px 0 !important;height:34px;">
+    `;
+    container.appendChild(div);
+  }
+}
+
+// Wire up all cc inputs
+function wireCC() {
+  document.querySelectorAll('.cc-inp').forEach(el => el.addEventListener('input', calcCC));
+  document.querySelectorAll('.custom-amt').forEach(el => el.addEventListener('input', calcCC));
+}
+
+buildCustomRows();
+wireCC();
+
+// Override calc to also trigger CC
+const _origCalc = calc;
+function calcAll() { _origCalc(); calcCC(); }
+document.querySelectorAll('input[type="number"]').forEach(el => el.addEventListener('input', calcAll));
+setMode(1);
+calcCC();
+</script>
+</body>
+</html>
