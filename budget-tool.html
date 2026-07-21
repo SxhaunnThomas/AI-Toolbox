@@ -288,9 +288,31 @@ function showStatus(msg){
   saveTimer=setTimeout(()=>el.classList.remove('show'),1300);
 }
 
+// ---------- Storage abstraction ----------
+// Uses Claude's window.storage when available (inside Claude's viewer).
+// Falls back to localStorage automatically when self-hosted (e.g. GitHub Pages),
+// since window.storage only exists inside Claude's own sandboxed environment.
+const hasClaudeStorage = typeof window !== 'undefined' && !!window.storage;
+const store = {
+  async get(key){
+    if(hasClaudeStorage){
+      return window.storage.get(key, false);
+    }
+    const v = localStorage.getItem('household-ledger:'+key);
+    return v != null ? {key, value:v} : null;
+  },
+  async set(key, value){
+    if(hasClaudeStorage){
+      return window.storage.set(key, value, false);
+    }
+    localStorage.setItem('household-ledger:'+key, value);
+    return {key, value};
+  }
+};
+
 async function loadTemplate(){
   try{
-    const r = await window.storage.get('template', false);
+    const r = await store.get('template');
     if(r && r.value){
       const t = JSON.parse(r.value);
       if(t.structure) structure = t.structure;
@@ -302,15 +324,15 @@ async function loadTemplate(){
 }
 async function saveTemplate(){
   try{
-    await window.storage.set('template', JSON.stringify({
+    await store.set('template', JSON.stringify({
       structure, fxRate: state.fxRate, displayCurrency: state.displayCurrency, income: state.income
-    }), false);
+    }));
   }catch(e){ console.error(e); }
 }
 
 async function loadMonth(key){
   try{
-    const r = await window.storage.get('month:'+key, false);
+    const r = await store.get('month:'+key);
     if(r && r.value){
       const d = JSON.parse(r.value);
       state.actuals = d.actuals || {};
@@ -324,9 +346,9 @@ async function loadMonth(key){
 }
 async function saveMonth(){
   try{
-    const r = await window.storage.set('month:'+state.month, JSON.stringify({
+    const r = await store.set('month:'+state.month, JSON.stringify({
       actuals: state.actuals, income: state.income
-    }), false);
+    }));
     if(r) showStatus('Saved');
   }catch(e){ console.error(e); showStatus('Save failed'); }
 }
@@ -417,15 +439,4 @@ function render(){
   structure.forEach((c,ci)=>{
     const catBudget = totals[ci].budget, catActual = totals[ci].actual;
     const pct = catBudget>0 ? Math.min(catActual/catBudget*100,100) : (catActual>0?100:0);
-    const over = catActual > catBudget;
-    const isOpen = !!state.openCats[c.cat];
-
-    const catEl = document.createElement('div');
-    catEl.className = 'category' + (isOpen?' open':'');
-    catEl.innerHTML = `
-      <div class="category-head" data-cat="${c.cat}">
-        <span class="dot" style="background:${c.color}"></span>
-        <span class="name">${c.cat}</span>
-        <span class="bar-wrap"><div class="mini-bar"><div class="mini-fill" style="width:${pct}%;background:${over?'var(--over)':'var(--ok)'}"></div></div></span>
-        <span class="figs">${fmt(fromJMDtoDisplay(catActual),state.displayCurrency)} / ${fmt(fromJMDtoDisplay(catBudget),state.displayCurrency)}</span>
-        <span class="chev">▸</s
+    con
