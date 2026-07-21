@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Household Ledger</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0b1220; --panel:#131d30; --panel-2:#0f1728; --border:#243254;
+    --text:#e8ecf3; --muted:#8a96ac; --gold:#c9a227;
+    --income:#3ea877; --expense:#b5532f; --jmd:#2a9d8f; --usd:#c9a227; --danger:#c0475a;
+    --ok:#3ea877; --over:#c0475a;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:
+      radial-gradient(1200px 600px at 10% -10%, rgba(42,157,143,0.07), transparent),
+      radial-gradient(1200px 600px at 100% 0%, rgba(201,162,39,0.06), transparent),
+      var(--bg);
+    color:var(--text); font-family:'Inter',sans-serif; min-height:100vh; padding:28px 16px 60px;
+  }
+  .wrap{max-width:960px;margin:0 auto;}
+  header{
+    display:flex; justify-content:space-between; align-items:flex-end; flex-wrap:wrap; gap:16px;
+    margin-bottom:20px; border-bottom:1px solid var(--border); padding-bottom:18px;
+  }
+  .brand-eyebrow{font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--gold);margin-bottom:6px;}
+  h1{font-family:'Space Grotesk',sans-serif;font-size:26px;font-weight:600;margin:0;letter-spacing:-.01em;}
+  .month-nav{display:flex;align-items:center;gap:6px;background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:6px;}
+  .month-nav button{background:none;border:none;color:var(--muted);font-size:16px;cursor:pointer;padding:2px 8px;border-radius:6px;}
+  .month-nav button:hover{background:var(--panel-2);color:var(--text);}
+  .month-label{font-family:'IBM Plex Mono',monospace;font-size:14px;min-width:112px;text-align:center;}
+
+  .settings-bar{
+    display:flex;align-items:center;gap:16px;flex-wrap:wrap;
+    background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:12px 16px;margin-bottom:20px;
+  }
+  .settings-bar .field{display:flex;align-items:center;gap:6px;}
+  .settings-bar label{font-size:11.5px;color:var(--muted);}
+  .settings-bar input[type=number]{
+    background:var(--panel-2);border:1px solid var(--border);color:var(--text);
+    border-radius:6px;padding:6px 8px;font-family:'IBM Plex Mono',monospace;font-size:13px;width:100px;
+  }
+  .toggle{display:flex;background:var(--panel-2);border:1px solid var(--border);border-radius:8px;overflow:hidden;margin-left:auto;}
+  .toggle button{border:none;background:none;color:var(--muted);padding:7px 16px;font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:.05em;cursor:pointer;}
+  .toggle button.active.jmd{background:var(--jmd);color:#06201c;}
+  .toggle button.active.usd{background:var(--usd);color:#241c00;}
+
+  .summary-card{
+    background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:20px 22px;margin-bottom:20px;
+    display:flex;gap:24px;flex-wrap:wrap;
+  }
+  .summary-figure{font-family:'IBM Plex Mono',monospace;}
+  .summary-figure .label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;display:block;margin-bottom:3px;}
+  .summary-figure .value{font-size:22px;font-weight:600;}
+  .summary-figure.budget .value{color:var(--text);}
+  .summary-figure.actual .value{color:var(--gold);}
+  .summary-figure.variance .value.ok{color:var(--ok);}
+  .summary-figure.variance .value.over{color:var(--over);}
+
+  .pies{display:grid;grid-template-columns:1fr;gap:18px;margin-bottom:24px;}
+  @media(min-width:680px){.pies{grid-template-columns:1fr 1fr;}}
+  .pie-card{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:18px;text-align:center;}
+  .pie-card h3{font-family:'Space Grotesk',sans-serif;font-size:14px;margin:0 0 14px;font-weight:600;color:var(--muted);}
+  .pie-card svg{display:block;margin:0 auto 12px;}
+  .pie-legend{display:flex;flex-wrap:wrap;gap:8px 14px;justify-content:center;}
+  .pie-legend-item{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--muted);font-family:'IBM Plex Mono',monospace;}
+  .swatch{width:9px;height:9px;border-radius:2px;display:inline-block;flex-shrink:0;}
+
+  .category{background:var(--panel);border:1px solid var(--border);border-radius:12px;margin-bottom:12px;overflow:hidden;}
+  .category-head{
+    display:flex;align-items:center;gap:12px;padding:14px 16px;cursor:pointer;user-select:none;
+  }
+  .category-head .dot{width:10px;height:10px;border-radius:3px;flex-shrink:0;}
+  .category-head .name{font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:15px;flex:0 0 auto;}
+  .category-head .bar-wrap{flex:1;min-width:80px;}
+  .category-head .mini-bar{height:8px;border-radius:4px;background:var(--panel-2);overflow:hidden;border:1px solid var(--border);}
+  .category-head .mini-fill{height:100%;}
+  .category-head .figs{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--muted);white-space:nowrap;}
+  .category-head .chev{color:var(--muted);font-size:13px;transition:transform .2s;flex-shrink:0;}
+  .category.open .chev{transform:rotate(90deg);}
+  .category-body{display:none;border-top:1px solid var(--border);padding:6px 16px 14px;}
+  .category.open .category-body{display:block;}
+
+  .sub-row{
+    display:grid;
+    grid-template-columns: 1fr 96px 96px 46px 90px;
+    gap:8px;align-items:center;padding:9px 0;border-bottom:1px solid var(--border);font-size:12.5px;
+  }
+  .sub-row:last-child{border-bottom:none;}
+  .sub-row .sname{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .sub-row .budget-cell{display:flex;align-items:center;gap:3px;}
+  .sub-row input.budget-input, .sub-row input.actual-input{
+    width:100%;background:var(--panel-2);border:1px solid var(--border);color:var(--text);
+    border-radius:5px;padding:5px 6px;font-family:'IBM Plex Mono',monospace;font-size:12px;
+  }
+  .sub-row select.cur-mini{
+    background:var(--panel-2);border:1px solid var(--border);color:var(--muted);
+    border-radius:5px;padding:5px 2px;font-size:11px;width:100%;
+  }
+  .pct-badge{font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:var(--gold);white-space:nowrap;}
+  .sub-bar-wrap{grid-column:1 / -1;height:6px;border-radius:3px;background:var(--panel-2);overflow:hidden;border:1px solid var(--border);margin-top:2px;}
+  .sub-bar-fill{height:100%;}
+  .col-hdr{
+    display:grid;grid-template-columns: 1fr 96px 96px 46px 90px;gap:8px;
+    font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;
+    padding:8px 0 6px;font-family:'IBM Plex Mono',monospace;
+  }
+
+  footer{margin-top:26px;text-align:center;color:var(--muted);font-size:11.5px;font-family:'IBM Plex Mono',monospace;}
+  .status{position:fixed;bottom:14px;right:16px;font-size:11px;color:var(--muted);font-family:'IBM Plex Mono',monospace;opacity:0;transition:opacity .3s;}
+  .status.show{opacity:1;}
+
+  .download-bar{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px;}
+  .download-btn{
+    display:flex;align-items:center;gap:7px;
+    background:var(--panel);border:1px solid var(--border);color:var(--text);
+    border-radius:8px;padding:9px 14px;font-size:12.5px;font-family:'IBM Plex Mono',monospace;
+    cursor:pointer;
+  }
+  .download-btn:hover{background:var(--panel-2);border-color:var(--gold);}
+  .download-btn svg{width:14px;height:14px;flex-shrink:0;}
+
+  @media print{
+    body{background:#fff;color:#111;padding:0;}
+    .month-nav, .settings-bar .toggle, .download-bar, .status, .chev{display:none !important;}
+    .settings-bar{background:#fff;border:1px solid #ccc;color:#111;}
+    .settings-bar input{border:1px solid #ccc;color:#111;background:#fff;}
+    .summary-card, .pie-card, .category{background:#fff;border:1px solid #ccc;color:#111;box-shadow:none;}
+    .summary-figure .value{color:#111 !important;}
+    .category-body{display:block !important;}
+    .category-head{cursor:default;}
+    .mini-bar, .sub-bar-wrap{border:1px solid #ccc;}
+    input.budget-input, input.actual-input, select.cur-mini{border:1px solid #ccc;color:#111;background:#fff;}
+    .pie-legend-item, .figs, .col-hdr{color:#333;}
+    a[href]{color:#111;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <div class="brand-eyebrow">Household Ledger</div>
+      <h1>Budget vs Actual</h1>
+    </div>
+    <div class="month-nav">
+      <button id="prevMonth">‹</button>
+      <span class="month-label" id="monthLabel">—</span>
+      <button id="nextMonth">›</button>
+    </div>
+  </header>
+
+  <div class="settings-bar">
+    <div class="field">
+      <label>Monthly income (J$)</label>
+      <input type="number" id="incomeInput" step="1000" min="0">
+    </div>
+    <div class="field">
+      <label>FX rate (J$ per US$1)</label>
+      <input type="number" id="fxRate" step="0.01" min="1" value="157.50">
+      <button class="download-btn" id="fetchRateBtn" style="padding:6px 10px;font-size:11px;" type="button">⟳ Fetch live</button>
+    </div>
+    <div class="toggle" id="currToggle">
+      <button class="jmd active" data-c="JMD">JMD</button>
+      <button class="usd" data-c="USD">USD</button>
+    </div>
+  </div>
+
+  <div class="download-bar">
+    <button class="download-btn" id="downloadCsvBtn">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v3a1 1 0 001 1h14a1 1 0 001-1v-3"/></svg>
+      Download CSV
+    </button>
+    <button class="download-btn" id="downloadPdfBtn">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2h9l5 5v13a2 2 0 01-2 2H6a2 2 0 01-2-2V4a2 2 0 012-2z"/><path d="M14 2v6h6"/></svg>
+      Download PDF summary
+    </button>
+  </div>
+
+  <div class="summary-card">
+    <div class="summary-figure budget"><span class="label">Total Budget</span><span class="value" id="totBudget">—</span></div>
+    <div class="summary-figure actual"><span class="label">Total Actual</span><span class="value" id="totActual">—</span></div>
+    <div class="summary-figure variance"><span class="label">Variance</span><span class="value" id="totVariance">—</span></div>
+  </div>
+
+  <div class="pies">
+    <div class="pie-card">
+      <h3>Ideal Split (Budget)</h3>
+      <div id="pieIdeal"></div>
+      <div class="pie-legend" id="legendIdeal"></div>
+    </div>
+    <div class="pie-card">
+      <h3>Actual Split</h3>
+      <div id="pieActual"></div>
+      <div class="pie-legend" id="legendActual"></div>
+    </div>
+  </div>
+
+  <div id="categories"></div>
+
+  <footer>Budget amounts are your recurring monthly plan — edit them any time. Actuals reset each month.</footer>
+</div>
+<div class="status" id="statusMsg">Saved</div>
+
+<script>
+// ---------- Budget template (recurring monthly plan, amounts in JMD) ----------
+const defaultStructure = [
+  {cat:'Gift', color:'#d17ea8', subs:[
+    {name:'Gift', type:'fixed', amount:2000}
+  ]},
+  {cat:'Other', color:'#6b7690', subs:[
+    {name:'Other', type:'fixed', amount:0}
+  ]},
+  {cat:'Life Stuff', color:'#8a6bd1', subs:[
+    {name:'Pension', type:'pct', pct:10},
+    {name:'Life Insurance', type:'fixed', amount:8000},
+    {name:'Medical', type:'fixed', amount:3000}
+  ]},
+  {cat:'Lifestyle', color:'#c9a227', subs:[
+    {name:'Subscriptions', type:'fixed', amount:15000},
+    {name:'TRIP', type:'fixed', amount:12000},
+    {name:'Personal', type:'fixed', amount:7000},
+    {name:'Transportation', type:'fixed', amount:0},
+    {name:'Food', type:'fixed', amount:15000},
+    {name:'Random', type:'fixed', amount:5000},
+    {name:'Souvenir', type:'fixed', amount:0},
+    {name:'Activities', type:'fixed', amount:0}
+  ]},
+  {cat:'Smoking', color:'#5aa9c9', subs:[
+    {name:'Flower', type:'fixed', amount:20000},
+    {name:'Grabba', type:'fixed', amount:2000},
+    {name:'Lighters + Paraphernalia', type:'fixed', amount:1000}
+  ]},
+  {cat:'The Purse', color:'#2a9d8f', subs:[
+    {name:'Investments', type:'pct', pct:10},
+    {name:'Savings', type:'pct', pct:5},
+    {name:'High Yield Savings', type:'pct', pct:5}
+  ]},
+  {cat:'Essentials', color:'#b5532f', subs:[
+    {name:'Household', type:'fixed', amount:130000},
+    {name:'Education', type:'fixed', amount:12000},
+    {name:'Bills', type:'fixed', amount:18000},
+    {name:'Joint Food', type:'fixed', amount:15000},
+    {name:'Schooling', type:'fixed', amount:0},
+    {name:'Exams', type:'fixed', amount:0},
+    {name:'Car Stuff', type:'fixed', amount:20000},
+    {name:'Joint Contribution', type:'fixed', amount:0},
+    {name:'Joint Braff', type:'fixed', amount:0},
+    {name:'Travel Pan', type:'fixed', amount:10000},
+    {name:'Joint Miscellaneous', type:'fixed', amount:0},
+    {name:'Wealth Builder', type:'fixed', amount:10000}
+  ]}
+];
+
+let structure = JSON.parse(JSON.stringify(defaultStructure));
+let state = {
+  month: currentMonthKey(),
+  displayCurrency:'JMD',
+  fxRate:157.50,
+  income:320000,
+  actuals:{}, // subKey -> {amount, currency}
+  openCats:{}
+};
+
+function subKey(cat,name){ return cat+'::'+name; }
+function currentMonthKey(d=new Date()){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'); }
+function monthLabelFor(key){ const [y,m]=key.split('-').map(Number); return new Date(y,m-1,1).toLocaleString('en-US',{month:'long',year:'numeric'}); }
+function shiftMonth(key,delta){ let [y,m]=key.split('-').map(Number); m+=delta; if(m<1){m=12;y--;} if(m>12){m=1;y++;} return y+'-'+String(m).padStart(2,'0'); }
+function fmt(n,cur){ const sym = cur==='USD'?'US$':'J$'; return sym+Number(n||0).toLocaleString('en-US',{minimumFractionDigits:0,maximumFractionDigits:0}); }
+function fromJMDtoDisplay(amtJMD){
+  if(state.displayCurrency==='JMD') return amtJMD;
+  return amtJMD/state.fxRate;
+}
+function toJMD(amount,cur){
+  if(cur==='JMD') return amount;
+  return amount*state.fxRate;
+}
+
+let saveTimer=null;
+function showStatus(msg){
+  const el=document.getElementById('statusMsg');
+  el.textContent=msg; el.classList.add('show');
+  clearTimeout(saveTimer);
+  saveTimer=setTimeout(()=>el.classList.remove('show'),1300);
+}
+
+async function loadTemplate(){
+  try{
+    const r = await window.storage.get('template', false);
+    if(r && r.value){
+      const t = JSON.parse(r.value);
+      if(t.structure) structure = t.structure;
+      if(t.fxRate) state.fxRate = t.fxRate;
+      if(t.displayCurrency) state.displayCurrency = t.displayCurrency;
+      if(t.income) state.income = t.income;
+    }
+  }catch(e){ /* first run */ }
+}
+async function saveTemplate(){
+  try{
+    await window.storage.set('template', JSON.stringify({
+      structure, fxRate: state.fxRate, displayCurrency: state.displayCurrency, income: state.income
+    }), false);
+  }catch(e){ console.error(e); }
+}
+
+async function loadMonth(key){
+  try{
+    const r = await window.storage.get('month:'+key, false);
+    if(r && r.value){
+      const d = JSON.parse(r.value);
+      state.actuals = d.actuals || {};
+      state.income = d.income != null ? d.income : state.income;
+    } else {
+      state.actuals = {};
+    }
+  }catch(e){
+    state.actuals = {};
+  }
+}
+async function saveMonth(){
+  try{
+    const r = await window.storage.set('month:'+state.month, JSON.stringify({
+      actuals: state.actuals, income: state.income
+    }), false);
+    if(r) showStatus('Saved');
+  }catch(e){ console.error(e); showStatus('Save failed'); }
+}
+
+function budgetForSub(sub){
+  if(sub.type==='pct') return state.income * (sub.pct/100);
+  return sub.amount;
+}
+function actualForSub(cat,name){
+  const a = state.actuals[subKey(cat,name)];
+  if(!a) return 0;
+  return toJMD(a.amount||0, a.currency||'JMD');
+}
+
+function categoryTotals(){
+  return structure.map(c=>{
+    let budget=0, actual=0;
+    c.subs.forEach(s=>{
+      budget += budgetForSub(s);
+      actual += actualForSub(c.cat, s.name);
+    });
+    return {cat:c.cat, color:c.color, budget, actual};
+  });
+}
+
+// ---------- Pie chart ----------
+function polarToCartesian(cx,cy,r,angleDeg){
+  const a=(angleDeg-90)*Math.PI/180;
+  return {x: cx+r*Math.cos(a), y: cy+r*Math.sin(a)};
+}
+function arcPath(cx,cy,r,startAngle,endAngle){
+  const start=polarToCartesian(cx,cy,r,endAngle);
+  const end=polarToCartesian(cx,cy,r,startAngle);
+  const largeArc = endAngle-startAngle<=180?"0":"1";
+  return `M ${cx} ${cy} L ${start.x.toFixed(2)} ${start.y.toFixed(2)} A ${r} ${r} 0 ${largeArc} 0 ${end.x.toFixed(2)} ${end.y.toFixed(2)} Z`;
+}
+function buildPie(data, size=170){
+  const total = data.reduce((s,d)=>s+d.value,0);
+  const cx=size/2, cy=size/2, r=size/2-3;
+  let angle=0, paths='';
+  if(total<=0){
+    paths = `<circle cx="${cx}" cy="${cy}" r="${r}" fill="var(--panel-2)" stroke="var(--border)" stroke-width="1"/>`;
+  } else {
+    data.filter(d=>d.value>0).forEach(d=>{
+      const slice = d.value/total*360;
+      const path = arcPath(cx,cy,r,angle,angle+slice);
+      paths += `<path d="${path}" fill="${d.color}" stroke="var(--panel)" stroke-width="1.5"><title>${d.label}: ${fmt(fromJMDtoDisplay(d.value), state.displayCurrency)}</title></path>`;
+      angle += slice;
+    });
+  }
+  return `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">${paths}</svg>`;
+}
+function buildLegend(data){
+  const total = data.reduce((s,d)=>s+d.value,0);
+  return data.map(d=>{
+    const pct = total>0 ? Math.round(d.value/total*100) : 0;
+    return `<div class="pie-legend-item"><span class="swatch" style="background:${d.color}"></span>${d.cat} · ${pct}%</div>`;
+  }).join('');
+}
+
+// ---------- Render ----------
+function render(){
+  document.getElementById('monthLabel').textContent = monthLabelFor(state.month);
+  document.getElementById('incomeInput').value = state.income;
+  document.getElementById('fxRate').value = state.fxRate;
+  document.querySelectorAll('#currToggle button').forEach(b=>{
+    b.classList.toggle('active', b.dataset.c===state.displayCurrency);
+  });
+
+  const totals = categoryTotals();
+  const totBudget = totals.reduce((s,c)=>s+c.budget,0);
+  const totActual = totals.reduce((s,c)=>s+c.actual,0);
+  const variance = totActual - totBudget;
+
+  document.getElementById('totBudget').textContent = fmt(fromJMDtoDisplay(totBudget), state.displayCurrency);
+  document.getElementById('totActual').textContent = fmt(fromJMDtoDisplay(totActual), state.displayCurrency);
+  const varEl = document.getElementById('totVariance');
+  varEl.textContent = (variance>=0?'+':'') + fmt(fromJMDtoDisplay(variance), state.displayCurrency);
+  varEl.className = 'value ' + (variance<=0 ? 'ok' : 'over');
+
+  document.getElementById('pieIdeal').innerHTML = buildPie(totals.map(t=>({label:t.cat,value:t.budget,color:t.color})));
+  document.getElementById('legendIdeal').innerHTML = buildLegend(totals.map(t=>({cat:t.cat,value:t.budget,color:t.color})));
+  document.getElementById('pieActual').innerHTML = buildPie(totals.map(t=>({label:t.cat,value:t.actual,color:t.color})));
+  document.getElementById('legendActual').innerHTML = buildLegend(totals.map(t=>({cat:t.cat,value:t.actual,color:t.color})));
+
+  const container = document.getElementById('categories');
+  container.innerHTML = '';
+  structure.forEach((c,ci)=>{
+    const catBudget = totals[ci].budget, catActual = totals[ci].actual;
+    const pct = catBudget>0 ? Math.min(catActual/catBudget*100,100) : (catActual>0?100:0);
+    const over = catActual > catBudget;
+    const isOpen = !!state.openCats[c.cat];
+
+    const catEl = document.createElement('div');
+    catEl.className = 'category' + (isOpen?' open':'');
+    catEl.innerHTML = `
+      <div class="category-head" data-cat="${c.cat}">
+        <span class="dot" style="background:${c.color}"></span>
+        <span class="name">${c.cat}</span>
+        <span class="bar-wrap"><div class="mini-bar"><div class="mini-fill" style="width:${pct}%;background:${over?'var(--over)':'var(--ok)'}"></div></div></span>
+        <span class="figs">${fmt(fromJMDtoDisplay(catActual),state.displayCurrency)} / ${fmt(fromJMDtoDisplay(catBudget),state.displayCurrency)}</span>
+        <span class="chev">▸</s
