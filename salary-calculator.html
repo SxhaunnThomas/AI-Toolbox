@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Jamaica Payroll Ledger — Net ⇄ Gross</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Spectral:wght@400;500;600;700&family=Spectral+SC:wght@500;600&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0c1a29;
+    --bg-2:#0a1522;
+    --panel:#132741;
+    --panel-2:#0f1f34;
+    --stub:#f4efe2;
+    --stub-line:#d8cfb4;
+    --stub-text:#2a2018;
+    --text:#eaf0f6;
+    --text-dim:#8fa3ba;
+    --border:rgba(255,255,255,0.09);
+    --gold:#c9a03f;
+    --gold-deep:#9c7a26;
+    --teal:#4f9c92;
+    --red:#a8503a;
+    --shadow: 0 20px 50px rgba(0,0,0,0.45);
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:
+      radial-gradient(1200px 600px at 15% -10%, rgba(201,160,63,0.08), transparent 60%),
+      radial-gradient(900px 500px at 100% 10%, rgba(79,156,146,0.08), transparent 55%),
+      var(--bg);
+    color:var(--text);
+    font-family:'Spectral',Georgia,serif;
+    min-height:100vh;
+    padding:32px 18px 60px;
+  }
+  .wrap{max-width:1080px;margin:0 auto;}
+
+  /* header */
+  .eyebrow{
+    font-family:'JetBrains Mono',monospace;
+    font-size:11px;
+    letter-spacing:.22em;
+    text-transform:uppercase;
+    color:var(--gold);
+    margin:0 0 10px;
+    display:flex;align-items:center;gap:10px;
+  }
+  .eyebrow::before{content:"";width:22px;height:1px;background:var(--gold-deep);display:inline-block;}
+  h1{
+    font-family:'Spectral SC', 'Spectral', serif;
+    font-weight:600;
+    font-size:clamp(26px,4.2vw,38px);
+    margin:0 0 8px;
+    letter-spacing:.01em;
+  }
+  .sub{color:var(--text-dim);font-size:15px;max-width:640px;line-height:1.5;margin:0 0 30px;}
+
+  /* layout */
+  .grid{display:grid;grid-template-columns:1fr;gap:22px;}
+  @media(min-width:880px){ .grid{grid-template-columns:380px 1fr;align-items:start;} }
+
+  .panel{
+    background:linear-gradient(180deg,var(--panel),var(--panel-2));
+    border:1px solid var(--border);
+    border-radius:10px;
+    padding:22px;
+  }
+  .panel + .panel{margin-top:20px;}
+
+  .label{
+    font-family:'JetBrains Mono',monospace;
+    font-size:10.5px;
+    letter-spacing:.12em;
+    text-transform:uppercase;
+    color:var(--text-dim);
+    margin:0 0 8px;
+    display:block;
+  }
+
+  /* mode toggle */
+  .seg{
+    display:flex;background:var(--bg-2);border:1px solid var(--border);
+    border-radius:8px;padding:3px;margin-bottom:20px;
+  }
+  .seg button{
+    flex:1;background:transparent;border:0;color:var(--text-dim);
+    font-family:'JetBrains Mono',monospace;font-size:12px;letter-spacing:.03em;
+    padding:10px 6px;border-radius:6px;cursor:pointer;transition:.15s;
+  }
+  .seg button.active{background:var(--gold);color:#241a04;font-weight:600;}
+
+  .field{margin-bottom:18px;}
+  .amount-row{display:flex;gap:8px;}
+  .amount-row input[type=number]{flex:1;}
+  input[type=number], select{
+    width:100%;
+    background:var(--bg-2);
+    border:1px solid var(--border);
+    color:var(--text);
+    font-family:'JetBrains Mono',monospace;
+    font-size:16px;
+    padding:11px 12px;
+    border-radius:7px;
+    outline:none;
+  }
+  input[type=number]:focus, select:focus{border-color:var(--gold);}
+  select{width:auto;min-width:110px;cursor:pointer;}
+  .freq-toggle{display:flex;border:1px solid var(--border);border-radius:7px;overflow:hidden;}
+  .freq-toggle button{
+    background:var(--bg-2);color:var(--text-dim);border:0;padding:0 14px;
+    font-family:'JetBrains Mono',monospace;font-size:12px;cursor:pointer;
+  }
+  .freq-toggle button.active{background:var(--teal);color:#06211d;font-weight:600;}
+
+  details{border-top:1px dashed var(--border);margin-top:14px;padding-top:14px;}
+  summary{
+    cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:11px;
+    letter-spacing:.1em;text-transform:uppercase;color:var(--gold);
+    list-style:none;display:flex;align-items:center;justify-content:space-between;
+  }
+  summary::-webkit-details-marker{display:none;}
+  summary::after{content:"+";font-size:16px;color:var(--text-dim);}
+  details[open] summary::after{content:"–";}
+  .assum-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px 12px;margin-top:14px;}
+  .assum-grid .field{margin-bottom:0;}
+  .assum-grid .label{font-size:9.5px;}
+  .assum-grid input{font-size:13px;padding:8px 9px;}
+  .reset-link{
+    background:none;border:0;color:var(--text-dim);font-family:'JetBrains Mono',monospace;
+    font-size:10.5px;text-decoration:underline;cursor:pointer;padding:0;margin-top:12px;
+  }
+
+  /* ledger stub */
+  .stub{
+    background:var(--stub);
+    color:var(--stub-text);
+    border-radius:10px;
+    box-shadow:var(--shadow);
+    position:relative;
+    overflow:hidden;
+  }
+  .stub-perf{
+    height:14px;
+    background-image: radial-gradient(circle, var(--bg) 4.5px, transparent 4.6px);
+    background-size: 22px 14px;
+    background-position: 6px -7px;
+    background-color: var(--stub);
+  }
+  .stub-inner{padding:26px 28px 22px;}
+  .stub-head{
+    display:flex;justify-content:space-between;align-items:flex-start;
+    border-bottom:2px solid var(--stub-text);padding-bottom:12px;margin-bottom:16px;
+  }
+  .stub-title{font-family:'Spectral SC';font-weight:600;font-size:17px;letter-spacing:.02em;}
+  .stub-tag{font-family:'JetBrains Mono';font-size:10px;color:#6b5c42;letter-spacing:.08em;text-transform:uppercase;}
+  .stub-period{display:flex;gap:6px;}
+  .stub-period button{
+    background:transparent;border:1px solid #6b5c42;color:#6b5c42;
+    font-family:'JetBrains Mono';font-size:10px;padding:5px 9px;border-radius:5px;cursor:pointer;
+  }
+  .stub-period button.active{background:#2a2018;color:var(--stub);border-color:#2a2018;}
+
+  .line{
+    display:flex;align-items:baseline;gap:8px;
+    font-family:'JetBrains Mono',monospace;font-size:14px;
+    padding:6px 0;
+  }
+  .line .ln-label{white-space:nowrap;color:#3a2f22;}
+  .line .ln-sub{color:#8a7a5c;font-size:10.5px;margin-left:6px;}
+  .line .ln-fill{flex:1;border-bottom:1px dotted #b8ab8c;transform:translateY(-3px);}
+  .line .ln-amt{white-space:nowrap;font-weight:500;min-width:110px;text-align:right;}
+  .line.neg .ln-amt{color:var(--red);}
+  .line.pension .ln-amt{color:var(--gold-deep);}
+
+  .stub-total{
+    margin-top:14px;padding-top:14px;border-top:2px solid var(--stub-text);
+    display:flex;justify-content:space-between;align-items:center;
+  }
+  .stub-total .tt-label{font-family:'Spectral SC';font-size:14px;letter-spacing:.06em;text-transform:uppercase;}
+  .stub-total .tt-amt{font-family:'JetBrains Mono';font-size:26px;font-weight:700;}
+  .stub-total.solve .tt-amt{color:var(--gold-deep);}
+
+  .stub-footer{
+    display:flex;justify-content:space-between;margin-top:18px;padding-top:12px;
+    border-top:1px dashed #b8ab8c;font-family:'JetBrains Mono';font-size:10px;color:#8a7a5c;
+  }
+
+  /* donut + employer cost row */
+  .below-grid{display:grid;grid-template-columns:1fr;gap:20px;margin-top:20px;}
+  @media(min-width:700px){ .below-grid{grid-template-columns:220px 1fr;} }
+
+  .donut-wrap{display:flex;flex-direction:column;align-items:center;gap:14px;}
+  .donut{width:170px;height:170px;border-radius:50%;position:relative;}
+  .donut::after{
+    content:"";position:absolute;inset:22px;border-radius:50%;
+    background:var(--panel-2);display:flex;
+  }
+  .legend{display:flex;flex-wrap:wrap;gap:8px 14px;justify-content:center;font-family:'JetBrains Mono';font-size:10.5px;color:var(--text-dim);}
+  .legend span{display:inline-flex;align-items:center;gap:6px;}
+  .dot{width:8px;height:8px;border-radius:2px;display:inline-block;}
+
+  .employer-panel .row{
+    display:flex;justify-content:space-between;font-family:'JetBrains Mono';font-size:13px;
+    padding:8px 0;border-bottom:1px solid var(--border);color:var(--text-dim);
+  }
+  .employer-panel .row:last-child{border-bottom:0;}
+  .employer-panel .row .amt{color:var(--text);}
+  .employer-panel .row.total{margin-top:6px;padding-top:12px;border-top:1px solid var(--border);}
+  .employer-panel .row.total .lbl,.employer-panel .row.total .amt{color:var(--teal);font-weight:600;font-size:15px;}
+
+  .note{color:var(--text-dim);font-size:12px;line-height:1.6;margin-top:22px;}
+  .note strong{color:var(--text);}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="eyebrow">Padrino · Personal Tools</div>
+  <h1>Jamaica Payroll Ledger</h1>
+  <p class="sub">Solve net pay from gross, or reverse-engineer the gross salary needed to hit a take-home target — NIS, NHT, Education Tax and PAYE calculated in the correct statutory order.</p>
+
+  <div class="grid">
+    <!-- CONTROLS -->
+    <div>
+      <div class="panel">
+        <span class="label">Calculate</span>
+        <div class="seg">
+          <button id="mode-n2g" class="active">Net → Gross</button>
+          <button id="mode-g2n">Gross → Net</button>
+        </div>
+
+        <div class="field">
+          <span class="label" id="amount-label">Target net pay</span>
+          <div class="amount-row">
+            <input type="number" id="amount" value="400000" min="0" step="1000">
+            <div class="freq-toggle">
+              <button id="freq-m" class="active">/mo</button>
+              <button id="freq-a">/yr</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="field">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+            <span class="label" style="margin-bottom:0;">Pension contribution</span>
+            <div class="freq-toggle">
+              <button id="pension-pct-btn" class="active" type="button">%</button>
+              <button id="pension-fixed-btn" type="button">J$ fixed</button>
+            </div>
+          </div>
+          <input type="number" id="pension" value="0" min="0" max="20" step="0.5">
+          <span class="label" id="pension-hint" style="margin:6px 0 0;text-transform:none;letter-spacing:0;font-size:10.5px;">% of gross salary</span>
+        </div>
+
+        <details>
+          <summary>Statutory assumptions (2026)</summary>
+          <div class="assum-grid">
+            <div class="field">
+              <span class="label">Threshold (annual)</span>
+              <input type="number" id="threshold" value="1902360" step="1000">
+            </div>
+            <div class="field">
+              <span class="label">NIS rate %</span>
+              <input type="number" id="nisRate" value="3" step="0.1">
+            </div>
+            <div class="field">
+              <span class="label">NIS ceiling (annual)</span>
+              <input type="number" id="nisCeiling" value="5000000" step="10000">
+            </div>
+            <div class="field">
+              <span class="label">NHT rate %</span>
+              <input type="number" id="nhtRate" value="2" step="0.1">
+            </div>
+            <div class="field">
+              <span class="label">Ed. Tax rate %</span>
+              <input type="number" id="edRate" value="2.25" step="0.05">
+            </div>
+            <div class="field">
+              <span class="label">PAYE low rate %</span>
+              <input type="number" id="payeLow" value="25" step="0.5">
+            </div>
+            <div class="field">
+              <span class="label">PAYE high rate %</span>
+              <input type="number" id="payeHigh" value="30" step="0.5">
+            </div>
+            <div class="field">
+              <span class="label">High band from (annual chargeable)</span>
+              <input type="number" id="payeHighFrom" value="6000000" step="10000">
+            </div>
+          </div>
+          <button class="reset-link" id="resetBtn">Reset to 2026 defaults (Apr–Dec threshold)</button>
+        </details>
+      </div>
+
+      <div class="panel employer-panel">
+        <span class="label">Employer cost (optional)</span>
+        <div class="assum-grid" style="margin-top:12px;">
+          <div class="field"><span class="label">Employer NIS %</span><input type="number" id="empNis" value="3" step="0.1"></div>
+          <div class="field"><span class="label">Employer NHT %</span><input type="number" id="empNht" value="3" step="0.1"></div>
+          <div class="field"><span class="label">Employer Ed.Tax %</span><input type="number" id="empEd" value="3.5" step="0.1"></div>
+          <div class="field"><span class="label">HEART/NTA %</span><input type="number" id="empHeart" value="3" step="0.1"></div>
+          <div class="field"><span class="label">Pension match (% of employee's contribution)</span><input type="number" id="empPensionMatch" value="0" step="5" min="0"></div>
+        </div>
+        <div style="margin-top:16px;">
+          <div class="row"><span class="lbl">Gross salary</span><span class="amt" id="ec-gross">—</span></div>
+          <div class="row"><span class="lbl">Employer NIS</span><span class="amt" id="ec-nis">—</span></div>
+          <div class="row"><span class="lbl">Employer NHT</span><span class="amt" id="ec-nht">—</span></div>
+          <div class="row"><span class="lbl">Employer Ed. Tax</span><span class="amt" id="ec-ed">—</span></div>
+          <div class="row"><span class="lbl">HEART/NTA</span><span class="amt" id="ec-heart">—</span></div>
+          <div class="row"><span class="lbl">Employer pension match<span class="ln-sub" id="ec-match-sub"></span></span><span class="amt" id="ec-match">—</span></div>
+          <div class="row total"><span class="lbl">Total cost to company</span><span class="amt" id="ec-total">—</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- OUTPUT -->
+    <div>
+      <div class="stub">
+        <div class="stub-perf"></div>
+        <div class="stub-inner">
+          <div class="stub-head">
+            <div>
+              <div class="stub-title">Statutory Deduction Ledger</div>
+              <div class="stub-tag">PAYE · NIS · NHT · Education Tax</div>
+            </div>
+            <div class="stub-period">
+              <button id="disp-m" class="active">Monthly</button>
+              <button id="disp-a">Annual</button>
+            </div>
+          </div>
+
+          <div class="line"><span class="ln-label">Gross salary</span><span class="ln-fill"></span><span class="ln-amt" id="l-gross">—</span></div>
+          <div class="line pension"><span class="ln-label">Pension contribution<span class="ln-sub" id="l-pension-sub"></span></span><span class="ln-fill"></span><span class="ln-amt" id="l-pension">—</span></div>
+          <div class="line neg"><span class="ln-label">NIS (3%, capped)<span class="ln-sub" id="l-nis-sub"></span></span><span class="ln-fill"></span><span class="ln-amt" id="l-nis">—</span></div>
+          <div class="line neg"><span class="ln-label">Education Tax<span class="ln-sub" id="l-ed-sub"></span></span><span class="ln-fill"></span><span class="ln-amt" id="l-ed">—</span></div>
+          <div class="line neg"><span class="ln-label">NHT<span class="ln-sub" id="l-nht-sub"></span></span><span class="ln-fill"></span><span class="ln-amt" id="l-nht">—</span></div>
+          <div class="line neg"><span class="ln-label">PAYE<span class="ln-sub" id="l-paye-sub"></span></span><span class="ln-fill"></span><span class="ln-amt" id="l-paye">—</span></div>
+
+          <div class="stub-total">
+            <span class="tt-label" id="l-total-label">Net Pay</span>
+            <span class="tt-amt" id="l-total">—</span>
+          </div>
+          <div class="stub-footer">
+            <span id="l-footer-left">J$ · 2026 rates</span>
+            <span id="l-footer-right"></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="below-grid">
+        <div class="panel donut-wrap">
+          <span class="label">Gross allocation</span>
+          <div class="donut" id="donut"></div>
+          <div class="legend" id="legend"></div>
+        </div>
+        <div class="panel">
+          <span class="label">How this is calculated</span>
+          <p class="note">
+            <strong>Order:</strong> (1) NIS on gross, capped at the annual ceiling ÷ 12 &nbsp;→&nbsp; (2) Education Tax on gross − NIS − pension &nbsp;→&nbsp; (3) NHT on full gross, uncapped &nbsp;→&nbsp; (4) chargeable income = gross − NIS − pension − threshold &nbsp;→&nbsp; (5) PAYE at the low rate up to the high-band cutoff, remainder at the high rate.<br><br>
+            The income tax threshold moves every April 1 — the default here (J$1,902,360/yr) is the rate effective April–December 2026. Edit the assumptions panel for the January–March 2026 threshold (J$1,799,376) or any future year. This is a planning estimate, not filing advice — confirm against TAJ before running payroll.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const fmt = n => 'J$' + Math.round(n).toLocaleString('en-JM');
+
+let mode = 'n2g';      // n2g = net->gross, g2n = gross->net
+let amtFreq = 'm';     // input amount frequency
+let dispFreq = 'm';    // display frequency
+let pensionMode = 'pct';       // 'pct' or 'fixed'
+let pensionPctVal = 0;         // remembered % value
+let pensionFixedVal = 0;       // remembered fixed monthly J$ value
+
+const DEFAULTS = {
+  threshold:1902360, nisRate:3, nisCeiling:5000000, nhtRate:2, edRate:2.25,
+  payeLow:25, payeHigh:30, payeHighFrom:6000000,
+  empNis:3, empNht:3, empEd:3.5, empHeart:3, empPensionMatch:0
+};
+
+function getAssumptions(){
+  return {
+    thresholdAnnual: +$('threshold').value,
+    nisRate: +$('nisRate').value,
+    nisCeilingAnnual: +$('nisCeiling').value,
+    nhtRate: +$('nhtRate').value,
+    edRate: +$('edRate').value,
+    payeLow: +$('payeLow').value,
+    payeHigh: +$('payeHigh').value,
+    payeHighFromAnnual: +$('payeHighFrom').value,
+    pensionMode: pensionMode,
+    pensionPct: pensionMode==='pct' ? +$('pension').value : 0,
+    pensionFixedM: pensionMode==='fixed' ? +$('pension').value : 0
+  };
+}
+
+// Given MONTHLY gross, return full monthly breakdown
+function fromGross(grossM, a){
+  const pension = a.pensionMode === 'fixed'
+    ? Math.min(a.pensionFixedM, grossM)
+    : grossM * a.pensionPct/100;
+  const nisCeilM = a.nisCeilingAnnual/12;
+  const nisBase = Math.min(grossM, nisCeilM);
+  const nis = nisBase * a.nisRate/100;
+  const nisCapped = grossM > nisCeilM;
+
+  const edBase = Math.max(grossM - nis - pension, 0);
+  const ed = edBase * a.edRate/100;
+
+  const nht = grossM * a.nhtRate/100;
+
+  const thresholdM = a.thresholdAnnual/12;
+  const chargeable = Math.max(grossM - nis - pension - thresholdM, 0);
+  const highFromM = a.payeHighFromAnnual/12;
+
+  let paye;
+  if(chargeable <= highFromM){
+    paye = chargeable * a.payeLow/100;
+  } else {
+    paye = highFromM*a.payeLow/100 + (chargeable-highFromM)*a.payeHigh/100;
+  }
+
+  const net = grossM - pension - nis - ed - nht - paye;
+  return {grossM, pension, nis, nisCapped, ed, nht, paye, chargeable, net};
+}
+
+// Reverse: binary search gross for a target monthly net
+function grossForNet(targetNetM, a){
+  let lo = 0, hi = targetNetM*3 + 5000000;
+  for(let i=0;i<80;i++){
+    const mid = (lo+hi)/2;
+    const net = fromGross(mid,a).net;
+    if(net < targetNetM) lo = mid; else hi = mid;
+  }
+  return fromGross((lo+hi)/2, a);
+}
+
+function render(){
+  const a = getAssumptions();
+  let amountInput = +$('amount').value || 0;
+  let amountM = amtFreq === 'a' ? amountInput/12 : amountInput;
+
+  let r;
+  if(mode === 'n2g'){
+    r = grossForNet(amountM, a);
+  } else {
+    r = fromGross(amountM, a);
+  }
+
+  const mult = dispFreq === 'a' ? 12 : 1;
+  const periodLabel = dispFreq === 'a' ? '/yr' : '/mo';
+
+  $('l-gross').textContent = fmt(r.grossM*mult);
+  const pensionActive = a.pensionMode==='fixed' ? a.pensionFixedM>0 : a.pensionPct>0;
+  $('l-pension').textContent = pensionActive ? '−'+fmt(r.pension*mult) : fmt(0);
+  $('l-pension-sub').textContent = !pensionActive ? ' (none)'
+    : a.pensionMode==='fixed' ? ' (fixed, /mo)'
+    : ' ('+a.pensionPct+'%)';
+  $('l-nis').textContent = '−'+fmt(r.nis*mult);
+  $('l-nis-sub').textContent = r.nisCapped ? ' — capped' : '';
