@@ -465,3 +465,101 @@ function render(){
     : ' ('+a.pensionPct+'%)';
   $('l-nis').textContent = '−'+fmt(r.nis*mult);
   $('l-nis-sub').textContent = r.nisCapped ? ' — capped' : '';
+ $('l-ed').textContent = '−'+fmt(r.ed*mult);
+  $('l-ed-sub').textContent = ' ('+a.edRate+'%)';
+  $('l-nht').textContent = '−'+fmt(r.nht*mult);
+  $('l-nht-sub').textContent = ' ('+a.nhtRate+'%)';
+  $('l-paye').textContent = '−'+fmt(r.paye*mult);
+  $('l-paye-sub').textContent = ' on '+fmt(r.chargeable*mult)+' chargeable';
+
+  $('l-total-label').textContent = mode==='n2g' ? 'Net Pay (solved for)' : 'Net Pay';
+  $('l-total').textContent = fmt(r.net*mult);
+  document.querySelector('.stub-total').classList.toggle('solve', mode==='n2g');
+
+  $('l-footer-left').textContent = 'J$ · '+ (dispFreq==='a'?'Annual':'Monthly') +' figures';
+  $('l-footer-right').textContent = mode==='n2g' ? 'Gross solved from target net' : 'Net solved from gross';
+
+  // donut
+  const parts = [
+    {k:'Net', v:r.net, c:'#c9a03f'},
+    {k:'PAYE', v:r.paye, c:'#a8503a'},
+    {k:'NIS', v:r.nis, c:'#7a8fa6'},
+    {k:'NHT', v:r.nht, c:'#4f9c92'},
+    {k:'Ed. Tax', v:r.ed, c:'#6b5c42'},
+  ];
+  if(pensionActive) parts.push({k:'Pension', v:r.pension, c:'#e0c878'});
+  const total = r.grossM;
+  let acc = 0;
+  const stops = parts.map(p=>{
+    const start = acc/total*360; acc+=p.v; const end = acc/total*360;
+    return `${p.c} ${start}deg ${end}deg`;
+  }).join(',');
+  $('donut').style.background = `conic-gradient(${stops})`;
+  $('legend').innerHTML = parts.map(p=>`<span><span class="dot" style="background:${p.c}"></span>${p.k} — ${(p.v/total*100).toFixed(1)}%</span>`).join('');
+
+  // employer cost (always monthly base * mult for display)
+  const empNis = Math.min(r.grossM, a.nisCeilingAnnual/12) * (+$('empNis').value)/100;
+  const empNht = r.grossM * (+$('empNht').value)/100;
+  const empEd = Math.max(r.grossM - r.nis - r.pension,0) * (+$('empEd').value)/100;
+  const empHeart = r.grossM * (+$('empHeart').value)/100;
+  const empMatchPct = +$('empPensionMatch').value;
+  const empMatch = pensionActive ? r.pension * empMatchPct/100 : 0;
+  const empTotal = r.grossM + empNis + empNht + empEd + empHeart + empMatch;
+
+  $('ec-gross').textContent = fmt(r.grossM*mult);
+  $('ec-nis').textContent = fmt(empNis*mult);
+  $('ec-nht').textContent = fmt(empNht*mult);
+  $('ec-ed').textContent = fmt(empEd*mult);
+  $('ec-heart').textContent = fmt(empHeart*mult);
+  $('ec-match').textContent = fmt(empMatch*mult);
+  $('ec-match-sub').textContent = !pensionActive ? ' (no employee contribution)' : (empMatchPct>0 ? ' ('+empMatchPct+'%)' : ' (0%)');
+  $('ec-total').textContent = fmt(empTotal*mult);
+}
+
+// ---- wiring ----
+$('mode-n2g').onclick = ()=>{ mode='n2g'; $('mode-n2g').classList.add('active'); $('mode-g2n').classList.remove('active'); $('amount-label').textContent='Target net pay'; render(); };
+$('mode-g2n').onclick = ()=>{ mode='g2n'; $('mode-g2n').classList.add('active'); $('mode-n2g').classList.remove('active'); $('amount-label').textContent='Gross salary'; render(); };
+
+$('freq-m').onclick = ()=>{ amtFreq='m'; $('freq-m').classList.add('active'); $('freq-a').classList.remove('active'); render(); };
+$('freq-a').onclick = ()=>{ amtFreq='a'; $('freq-a').classList.add('active'); $('freq-m').classList.remove('active'); render(); };
+
+$('disp-m').onclick = ()=>{ dispFreq='m'; $('disp-m').classList.add('active'); $('disp-a').classList.remove('active'); render(); };
+$('disp-a').onclick = ()=>{ dispFreq='a'; $('disp-a').classList.add('active'); $('disp-m').classList.remove('active'); render(); };
+
+$('pension-pct-btn').onclick = ()=>{
+  if(pensionMode==='fixed'){ pensionFixedVal = +$('pension').value || 0; }
+  pensionMode = 'pct';
+  $('pension-pct-btn').classList.add('active');
+  $('pension-fixed-btn').classList.remove('active');
+  $('pension').value = pensionPctVal;
+  $('pension').step = 0.5; $('pension').max = 20;
+  $('pension-hint').textContent = '% of gross salary';
+  render();
+};
+$('pension-fixed-btn').onclick = ()=>{
+  if(pensionMode==='pct'){ pensionPctVal = +$('pension').value || 0; }
+  pensionMode = 'fixed';
+  $('pension-fixed-btn').classList.add('active');
+  $('pension-pct-btn').classList.remove('active');
+  $('pension').value = pensionFixedVal;
+  $('pension').removeAttribute('max'); $('pension').step = 500;
+  $('pension-hint').textContent = 'fixed J$ per month';
+  render();
+};
+
+$('resetBtn').onclick = ()=>{
+  for(const k in DEFAULTS){ if($(k)) $(k).value = DEFAULTS[k]; }
+  pensionMode='pct'; pensionPctVal=0; pensionFixedVal=0;
+  $('pension').value = 0; $('pension').step=0.5; $('pension').max=20;
+  $('pension-hint').textContent = '% of gross salary';
+  $('pension-pct-btn').classList.add('active');
+  $('pension-fixed-btn').classList.remove('active');
+  render();
+};
+
+document.querySelectorAll('input').forEach(el=> el.addEventListener('input', render));
+
+render();
+</script>
+</body>
+</html>
