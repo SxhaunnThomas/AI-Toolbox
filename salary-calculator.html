@@ -213,6 +213,69 @@
 
   .note{color:var(--text-dim);font-size:12px;line-height:1.6;margin-top:22px;}
   .note strong{color:var(--text);}
+
+  .export-btn{
+    display:flex;align-items:center;justify-content:center;gap:8px;
+    width:100%;margin-top:16px;
+    background:linear-gradient(180deg,var(--gold),var(--gold-deep));
+    color:#241a04;border:0;border-radius:8px;
+    font-family:'JetBrains Mono',monospace;font-size:12px;letter-spacing:.08em;text-transform:uppercase;
+    font-weight:700;padding:13px 16px;cursor:pointer;
+    box-shadow:0 8px 20px rgba(201,160,63,0.18);
+    transition:transform .12s ease, box-shadow .12s ease;
+  }
+  .export-btn:hover{transform:translateY(-1px);box-shadow:0 10px 24px rgba(201,160,63,0.26);}
+  .export-btn:disabled{opacity:.6;cursor:progress;transform:none;}
+  .export-btn::before{content:"⬇";font-size:13px;}
+
+  /* PDF export template — off-screen, light/paper styling for clean rasterization */
+  #pdf-export{
+    position:absolute;left:-9999px;top:0;
+    width:760px;
+    background:#faf7ef;
+    font-family:'Spectral',Georgia,serif;
+    color:#241d12;
+  }
+  .pdf-page{padding:48px 52px 40px;}
+  .pdf-head{
+    display:flex;justify-content:space-between;align-items:flex-start;
+    border-bottom:3px solid #241d12;padding-bottom:16px;margin-bottom:22px;
+  }
+  .pdf-eyebrow{
+    font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.2em;
+    text-transform:uppercase;color:#9c7a26;margin-bottom:8px;
+  }
+  .pdf-title{font-family:'Spectral SC';font-weight:600;font-size:26px;}
+  .pdf-sub{font-family:'JetBrains Mono',monospace;font-size:11.5px;color:#6b5c42;margin-top:8px;}
+  .pdf-date{font-family:'JetBrains Mono',monospace;font-size:11px;color:#6b5c42;text-align:right;white-space:nowrap;}
+  .pdf-section-title{
+    font-family:'Spectral SC';font-size:13px;letter-spacing:.08em;text-transform:uppercase;
+    color:#9c7a26;margin-bottom:10px;
+  }
+  .pdf-table{width:100%;border-collapse:collapse;font-family:'JetBrains Mono',monospace;font-size:14px;}
+  .pdf-table tr td{padding:9px 0;border-bottom:1px dotted #c9bd9f;}
+  .pdf-table tr td:first-child{color:#241d12;}
+  .pdf-table tr td:last-child{text-align:right;font-weight:500;white-space:nowrap;}
+  .pdf-table tr.neg td:last-child{color:#a8503a;}
+  .pdf-table tr td .pdf-sub-note{color:#8a7a5c;font-size:10.5px;margin-left:6px;}
+  .pdf-total-row{
+    display:flex;justify-content:space-between;align-items:center;
+    border-top:3px solid #241d12;border-bottom:1px solid #241d12;
+    padding:14px 0;margin-top:4px;
+  }
+  .pdf-total-row span:first-child{font-family:'Spectral SC';font-size:14px;letter-spacing:.06em;text-transform:uppercase;}
+  .pdf-total-row span:last-child{font-family:'JetBrains Mono',monospace;font-size:24px;font-weight:700;color:#9c7a26;}
+  .pdf-total-row.alt{border-top:1px solid #241d12;padding-top:10px;margin-top:0;}
+  .pdf-total-row.alt span:last-child{font-size:18px;color:#3e6f68;}
+  .pdf-assumptions{
+    display:grid;grid-template-columns:1fr 1fr;gap:6px 24px;
+    font-family:'JetBrains Mono',monospace;font-size:11.5px;color:#5a4e38;
+  }
+  .pdf-assumptions div{display:flex;justify-content:space-between;border-bottom:1px dotted #d8cfb4;padding:4px 0;}
+  .pdf-footer{
+    margin-top:30px;padding-top:14px;border-top:1px dashed #c9bd9f;
+    font-family:'JetBrains Mono',monospace;font-size:10px;color:#8a7a5c;line-height:1.6;
+  }
 </style>
 </head>
 <body>
@@ -350,6 +413,10 @@
         </div>
       </div>
 
+      <button id="exportPdfBtn" class="export-btn">
+        <span id="exportPdfLabel">Export PDF</span>
+      </button>
+
       <div class="below-grid">
         <div class="panel donut-wrap">
           <span class="label">Gross allocation</span>
@@ -368,6 +435,44 @@
   </div>
 </div>
 
+<!-- Hidden print template, rendered off-screen and captured for PDF export -->
+<div id="pdf-export">
+  <div class="pdf-page">
+    <div class="pdf-head">
+      <div>
+        <div class="pdf-eyebrow">Padrino · Personal Tools</div>
+        <div class="pdf-title">Jamaica Payroll Ledger</div>
+        <div class="pdf-sub" id="pdf-mode-line"></div>
+      </div>
+      <div class="pdf-date" id="pdf-date"></div>
+    </div>
+
+    <div class="pdf-section-title">Statutory Deduction Ledger</div>
+    <table class="pdf-table" id="pdf-ledger-table"></table>
+
+    <div class="pdf-total-row">
+      <span id="pdf-total-label">Net Pay</span>
+      <span id="pdf-total-amt"></span>
+    </div>
+
+    <div class="pdf-section-title" style="margin-top:26px;">Employer Cost</div>
+    <table class="pdf-table" id="pdf-employer-table"></table>
+    <div class="pdf-total-row alt">
+      <span>Total Cost to Company</span>
+      <span id="pdf-employer-total"></span>
+    </div>
+
+    <div class="pdf-section-title" style="margin-top:26px;">Assumptions</div>
+    <div class="pdf-assumptions" id="pdf-assumptions"></div>
+
+    <div class="pdf-footer">
+      Planning estimate only — not filing advice. Confirm against TAJ before running payroll.
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script>
 const $ = id => document.getElementById(id);
 const fmt = n => 'J$' + Math.round(n).toLocaleString('en-JM');
@@ -514,6 +619,11 @@ function render(){
   $('ec-match').textContent = fmt(empMatch*mult);
   $('ec-match-sub').textContent = !pensionActive ? ' (no employee contribution)' : (empMatchPct>0 ? ' ('+empMatchPct+'%)' : ' (0%)');
   $('ec-total').textContent = fmt(empTotal*mult);
+
+  window.__last = {
+    r, a, mult, dispFreq, mode, pensionActive,
+    empNis, empNht, empEd, empHeart, empMatch, empMatchPct, empTotal
+  };
 }
 
 // ---- wiring ----
@@ -560,6 +670,98 @@ $('resetBtn').onclick = ()=>{
 document.querySelectorAll('input').forEach(el=> el.addEventListener('input', render));
 
 render();
+
+// ---- PDF export ----
+function populatePdfTemplate(){
+  const {r, a, mult, dispFreq, mode, pensionActive, empNis, empNht, empEd, empHeart, empMatch, empMatchPct, empTotal} = window.__last;
+  const periodWord = dispFreq === 'a' ? 'Annual' : 'Monthly';
+
+  $('pdf-mode-line').textContent = (mode==='n2g' ? 'Gross solved from target net pay' : 'Net solved from gross salary') + ' · ' + periodWord + ' figures';
+  $('pdf-date').innerHTML = 'Generated<br>' + new Date().toLocaleDateString('en-JM', {year:'numeric', month:'long', day:'numeric'});
+
+  const ledgerRows = [
+    ['Gross salary', r.grossM*mult, false, ''],
+    ['Pension contribution', pensionActive ? -r.pension*mult : 0, true,
+      !pensionActive ? '(none)' : a.pensionMode==='fixed' ? '(fixed, /mo)' : '('+a.pensionPct+'%)'],
+    ['NIS', -r.nis*mult, true, r.nisCapped ? '(3%, capped)' : '(3%)'],
+    ['Education Tax', -r.ed*mult, true, '('+a.edRate+'%)'],
+    ['NHT', -r.nht*mult, true, '('+a.nhtRate+'%)'],
+    ['PAYE', -r.paye*mult, true, 'on '+fmt(r.chargeable*mult)+' chargeable'],
+  ];
+  $('pdf-ledger-table').innerHTML = ledgerRows.map(([label,val,neg,note])=>
+    `<tr class="${neg?'neg':''}"><td>${label} <span class="pdf-sub-note">${note}</span></td><td>${val<0?'−':''}${fmt(Math.abs(val))}</td></tr>`
+  ).join('');
+  $('pdf-total-label').textContent = (mode==='n2g' ? 'Net Pay (solved for)' : 'Net Pay');
+  $('pdf-total-amt').textContent = fmt(r.net*mult);
+
+  const empRows = [
+    ['Gross salary', r.grossM*mult, ''],
+    ['Employer NIS', empNis*mult, '('+$('empNis').value+'%)'],
+    ['Employer NHT', empNht*mult, '('+$('empNht').value+'%)'],
+    ['Employer Education Tax', empEd*mult, '('+$('empEd').value+'%)'],
+    ['HEART/NTA', empHeart*mult, '('+$('empHeart').value+'%)'],
+    ['Employer pension match', empMatch*mult, pensionActive ? '('+empMatchPct+'%)' : '(no employee contribution)'],
+  ];
+  $('pdf-employer-table').innerHTML = empRows.map(([label,val,note])=>
+    `<tr><td>${label} <span class="pdf-sub-note">${note}</span></td><td>${fmt(val)}</td></tr>`
+  ).join('');
+  $('pdf-employer-total').textContent = fmt(empTotal*mult);
+
+  const assumptions = [
+    ['Income tax threshold (annual)', fmt(a.thresholdAnnual)],
+    ['NIS rate / ceiling', a.nisRate+'% up to '+fmt(a.nisCeilingAnnual)+'/yr'],
+    ['NHT rate', a.nhtRate+'%'],
+    ['Education Tax rate', a.edRate+'%'],
+    ['PAYE low / high rate', a.payeLow+'% / '+a.payeHigh+'%'],
+    ['PAYE high band from', fmt(a.payeHighFromAnnual)+'/yr chargeable'],
+  ];
+  $('pdf-assumptions').innerHTML = assumptions.map(([k,v])=>`<div><span>${k}</span><span>${v}</span></div>`).join('');
+}
+
+$('exportPdfBtn').onclick = async ()=>{
+  const btn = $('exportPdfBtn');
+  const label = $('exportPdfLabel');
+  const originalLabel = label.textContent;
+  btn.disabled = true;
+  label.textContent = 'Preparing…';
+  try{
+    populatePdfTemplate();
+    await new Promise(res=>setTimeout(res, 50)); // let fonts/layout settle
+    const node = document.getElementById('pdf-export');
+    const canvas = await html2canvas(node, {scale:2, backgroundColor:'#faf7ef', useCORS:true});
+    const imgData = canvas.toDataURL('image/png');
+
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF({unit:'pt', format:'a4'});
+    const pageW = pdf.internal.pageSize.getWidth();
+    const pageH = pdf.internal.pageSize.getHeight();
+    const imgW = pageW;
+    const imgH = canvas.height * (imgW / canvas.width);
+
+    if(imgH <= pageH){
+      pdf.addImage(imgData, 'PNG', 0, 0, imgW, imgH);
+    } else {
+      // slice across multiple pages
+      let heightLeft = imgH, position = 0;
+      pdf.addImage(imgData, 'PNG', 0, position, imgW, imgH);
+      heightLeft -= pageH;
+      while(heightLeft > 0){
+        position = heightLeft - imgH;
+        pdf.addPage();
+        pdf.addImage(imgData, 'PNG', 0, position, imgW, imgH);
+        heightLeft -= pageH;
+      }
+    }
+    const dateStr = new Date().toISOString().slice(0,10);
+    pdf.save(`padrino-payroll-ledger-${dateStr}.pdf`);
+  } catch(err){
+    console.error(err);
+    alert('PDF export failed — check the browser console for details.');
+  } finally {
+    btn.disabled = false;
+    label.textContent = originalLabel;
+  }
+};
 </script>
 </body>
 </html>
