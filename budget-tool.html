@@ -470,7 +470,7 @@ function subRowHtml(c,s){
   const barPct = Math.min(pctUsed,100);
 
   const budgetCell = s.type==='pct'
-    ? `<span class="pct-badge">${s.pct}% · ${fmt(fromJMDtoDisplay(budget),state.displayCurrency)}</span>`
+    ? `<span class="pct-badge"><input class="budget-input pct-input" type="number" step="0.5" min="0" max="100" value="${s.pct}" data-cat="${c.cat}" data-name="${s.name}" data-role="pct" style="width:48px;display:inline-block;padding:3px 4px;">% · ${fmt(fromJMDtoDisplay(budget),state.displayCurrency)}</span>`
     : `<input class="budget-input" type="number" step="500" min="0" value="${s.amount}" data-cat="${c.cat}" data-name="${s.name}" data-role="budget">`;
 
   return `
@@ -584,6 +584,11 @@ document.getElementById('categories').addEventListener('change', async e=>{
     const sub = structure.find(c=>c.cat===cat).subs.find(s=>s.name===name);
     const v = parseFloat(t.value);
     sub.amount = isNaN(v)?0:v;
+    await saveTemplate();
+  } else if(role==='pct'){
+    const sub = structure.find(c=>c.cat===cat).subs.find(s=>s.name===name);
+    const v = parseFloat(t.value);
+    sub.pct = isNaN(v)?0:v;
     await saveTemplate();
   } else if(role==='actual'){
     const v = parseFloat(t.value);
