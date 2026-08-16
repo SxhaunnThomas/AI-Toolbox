@@ -439,4 +439,200 @@ function render(){
   structure.forEach((c,ci)=>{
     const catBudget = totals[ci].budget, catActual = totals[ci].actual;
     const pct = catBudget>0 ? Math.min(catActual/catBudget*100,100) : (catActual>0?100:0);
-    con
+    const over = catActual > catBudget;
+    const isOpen = !!state.openCats[c.cat];
+
+    const catEl = document.createElement('div');
+    catEl.className = 'category' + (isOpen?' open':'');
+    catEl.innerHTML = `
+      <div class="category-head" data-cat="${c.cat}">
+        <span class="dot" style="background:${c.color}"></span>
+        <span class="name">${c.cat}</span>
+        <span class="bar-wrap"><div class="mini-bar"><div class="mini-fill" style="width:${pct}%;background:${over?'var(--over)':'var(--ok)'}"></div></div></span>
+        <span class="figs">${fmt(fromJMDtoDisplay(catActual),state.displayCurrency)} / ${fmt(fromJMDtoDisplay(catBudget),state.displayCurrency)}</span>
+        <span class="chev">▸</span>
+      </div>
+      <div class="category-body">
+        <div class="col-hdr"><span>Subcategory</span><span>Budget</span><span>Actual</span><span>Cur</span><span>% used</span></div>
+        ${c.subs.map(s=>subRowHtml(c,s)).join('')}
+      </div>
+    `;
+    container.appendChild(catEl);
+  });
+}
+
+function subRowHtml(c,s){
+  const budget = budgetForSub(s);
+  const a = state.actuals[subKey(c.cat,s.name)] || {amount:0, currency:'JMD'};
+  const actualJMD = toJMD(a.amount||0, a.currency||'JMD');
+  const pctUsed = budget>0 ? Math.round(actualJMD/budget*100) : (actualJMD>0?100:0);
+  const over = actualJMD > budget;
+  const barPct = Math.min(pctUsed,100);
+
+  const budgetCell = s.type==='pct'
+    ? `<span class="pct-badge">${s.pct}% · ${fmt(fromJMDtoDisplay(budget),state.displayCurrency)}</span>`
+    : `<input class="budget-input" type="number" step="500" min="0" value="${s.amount}" data-cat="${c.cat}" data-name="${s.name}" data-role="budget">`;
+
+  return `
+    <div class="sub-row">
+      <span class="sname">${s.name}</span>
+      <span class="budget-cell">${budgetCell}</span>
+      <input class="actual-input" type="number" step="100" min="0" value="${a.amount||''}" placeholder="0" data-cat="${c.cat}" data-name="${s.name}" data-role="actual">
+      <select class="cur-mini" data-cat="${c.cat}" data-name="${s.name}" data-role="curr">
+        <option value="JMD" ${(a.currency||'JMD')==='JMD'?'selected':''}>JMD</option>
+        <option value="USD" ${(a.currency||'JMD')==='USD'?'selected':''}>USD</option>
+      </select>
+      <span style="font-family:'IBM Plex Mono',monospace;color:${over?'var(--over)':'var(--muted)'};">${pctUsed}%</span>
+      <div class="sub-bar-wrap"><div class="sub-bar-fill" style="width:${barPct}%;background:${over?'var(--over)':'var(--ok)'}"></div></div>
+    </div>
+  `;
+}
+
+// ---------- Live FX fetch (works only when hosted with internet access, not inside the sandboxed artifact viewer) ----------
+async function fetchLiveRate(){
+  const btn = document.getElementById('fetchRateBtn');
+  const original = btn.textContent;
+  btn.textContent = '⟳ Fetching…';
+  btn.disabled = true;
+  try{
+    const res = await fetch('https://open.er-api.com/v6/latest/USD');
+    if(!res.ok) throw new Error('Request failed');
+    const data = await res.json();
+    const rate = data && data.rates && data.rates.JMD;
+    if(!rate) throw new Error('No JMD rate in response');
+    state.fxRate = Math.round(rate*100)/100;
+    render();
+    await saveTemplate();
+    showStatus('Live rate: J$'+state.fxRate);
+  }catch(e){
+    showStatus('Live fetch unavailable — enter rate manually');
+  }finally{
+    btn.textContent = original;
+    btn.disabled = false;
+  }
+}
+document.getElementById('fetchRateBtn').addEventListener('click', fetchLiveRate);
+
+
+function downloadCSV(){
+  const totals = categoryTotals();
+  const rows = [['Category','Subcategory','Budget (JMD)','Actual (JMD)','Entered Amount','Entered Currency','Variance (JMD)','% Used']];
+  structure.forEach(c=>{
+    c.subs.forEach(s=>{
+      const budget = budgetForSub(s);
+      const a = state.actuals[subKey(c.cat,s.name)] || {amount:0, currency:'JMD'};
+      const actualJMD = toJMD(a.amount||0, a.currency||'JMD');
+      const variance = actualJMD - budget;
+      const pctUsed = budget>0 ? Math.round(actualJMD/budget*100) : (actualJMD>0?100:0);
+      rows.push([c.cat, s.name, budget.toFixed(2), actualJMD.toFixed(2), (a.amount||0), a.currency||'JMD', variance.toFixed(2), pctUsed+'%']);
+    });
+  });
+  const totBudget = totals.reduce((s,c)=>s+c.budget,0);
+  const totActual = totals.reduce((s,c)=>s+c.actual,0);
+  rows.push([]);
+  rows.push(['TOTAL','', totBudget.toFixed(2), totActual.toFixed(2), '', '', (totActual-totBudget).toFixed(2), (totBudget>0?Math.round(totActual/totBudget*100):0)+'%']);
+  rows.push([]);
+  rows.push(['Monthly income (JMD)', state.income]);
+  rows.push(['FX rate (JMD per USD)', state.fxRate]);
+
+  const csv = rows.map(r=>r.map(v=>{
+    const s = String(v ?? '');
+    return /[",\n]/.test(s) ? '"'+s.replace(/"/g,'""')+'"' : s;
+  }).join(',')).join('\n');
+
+  const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `household-budget-${state.month}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  showStatus('CSV downloaded');
+}
+
+function downloadPDF(){
+  // Expand all categories so the printed report shows full detail
+  structure.forEach(c=>{ state.openCats[c.cat] = true; });
+  render();
+  document.title = `Household Budget — ${monthLabelFor(state.month)}`;
+  setTimeout(()=>window.print(), 150);
+}
+
+document.getElementById('downloadCsvBtn').addEventListener('click', downloadCSV);
+document.getElementById('downloadPdfBtn').addEventListener('click', downloadPDF);
+
+
+document.getElementById('categories').addEventListener('click', e=>{
+  const head = e.target.closest('.category-head');
+  if(head && !e.target.closest('input') && !e.target.closest('select')){
+    const cat = head.dataset.cat;
+    state.openCats[cat] = !state.openCats[cat];
+    render();
+  }
+});
+
+document.getElementById('categories').addEventListener('change', async e=>{
+  const t = e.target;
+  const role = t.dataset.role;
+  if(!role) return;
+  const cat = t.dataset.cat, name = t.dataset.name;
+  const key = subKey(cat,name);
+
+  if(role==='budget'){
+    const sub = structure.find(c=>c.cat===cat).subs.find(s=>s.name===name);
+    const v = parseFloat(t.value);
+    sub.amount = isNaN(v)?0:v;
+    await saveTemplate();
+  } else if(role==='actual'){
+    const v = parseFloat(t.value);
+    if(!state.actuals[key]) state.actuals[key] = {amount:0, currency:'JMD'};
+    state.actuals[key].amount = isNaN(v)?0:v;
+    await saveMonth();
+  } else if(role==='curr'){
+    if(!state.actuals[key]) state.actuals[key] = {amount:0, currency:'JMD'};
+    state.actuals[key].currency = t.value;
+    await saveMonth();
+  }
+  state.openCats[cat] = true;
+  render();
+});
+
+document.getElementById('currToggle').addEventListener('click', async e=>{
+  const btn = e.target.closest('button');
+  if(!btn) return;
+  state.displayCurrency = btn.dataset.c;
+  render();
+  await saveTemplate();
+});
+
+document.getElementById('fxRate').addEventListener('change', async e=>{
+  const v = parseFloat(e.target.value);
+  if(!isNaN(v) && v>0){ state.fxRate=v; render(); await saveTemplate(); }
+});
+
+document.getElementById('incomeInput').addEventListener('change', async e=>{
+  const v = parseFloat(e.target.value);
+  if(!isNaN(v) && v>=0){ state.income=v; render(); await saveTemplate(); await saveMonth(); }
+});
+
+document.getElementById('prevMonth').addEventListener('click', async ()=>{
+  state.month = shiftMonth(state.month,-1);
+  await loadMonth(state.month);
+  render();
+});
+document.getElementById('nextMonth').addEventListener('click', async ()=>{
+  state.month = shiftMonth(state.month,1);
+  await loadMonth(state.month);
+  render();
+});
+
+(async function init(){
+  await loadTemplate();
+  await loadMonth(state.month);
+  render();
+})();
+</script>
+</body>
+</html>
