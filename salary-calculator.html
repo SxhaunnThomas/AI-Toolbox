@@ -465,7 +465,7 @@ function render(){
     : ' ('+a.pensionPct+'%)';
   $('l-nis').textContent = '−'+fmt(r.nis*mult);
   $('l-nis-sub').textContent = r.nisCapped ? ' — capped' : '';
- $('l-ed').textContent = '−'+fmt(r.ed*mult);
+  $('l-ed').textContent = '−'+fmt(r.ed*mult);
   $('l-ed-sub').textContent = ' ('+a.edRate+'%)';
   $('l-nht').textContent = '−'+fmt(r.nht*mult);
   $('l-nht-sub').textContent = ' ('+a.nhtRate+'%)';
