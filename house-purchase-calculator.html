@@ -108,7 +108,74 @@
   .cc-banner-title { font-size: 1.35rem; font-weight: 600; color: var(--white); letter-spacing: -0.02em; line-height: 1.2; }
   .cc-banner-sub { font-size: 12px; color: var(--ink-mid); margin-top: 0.3rem; }
 
+  .pdf-btn {
+    font-family: var(--sans); font-size: 12px; font-weight: 500;
+    color: var(--white); background: rgba(77,142,245,0.2);
+    border: 1px solid rgba(77,142,245,0.4); border-radius: 8px;
+    cursor: pointer; padding: 7px 16px; transition: all 0.18s;
+    letter-spacing: 0.02em;
+  }
+  .pdf-btn:hover { background: rgba(77,142,245,0.35); border-color: rgba(77,142,245,0.7); }
+
   .footer { text-align: center; font-size: 11px; color: #3a5570; margin-top: 2.5rem; font-family: var(--mono); }
+
+  @media print {
+    :root {
+      --ink: #1a1a2e; --ink-mid: #444; --ink-light: #666;
+      --border: #d0d8e8; --surface: #f4f6fa; --card: #ffffff;
+      --white: #1a1a2e; --green: #007a50; --green-light: #e8f5ef;
+      --green-mid: #b3dec9; --gold: #8a6200; --gold-light: #fff8e0;
+      --accent: #1a56db;
+    }
+    body { background: #fff; color: #1a1a2e; }
+    .header {
+      background: #0d1f3c !important;
+      color: #fff !important;
+      padding: 1.25rem 1.5rem !important;
+      -webkit-print-color-adjust: exact;
+    }
+    .header-eyebrow, .header h1, .header p { color: #fff !important; }
+    .pdf-btn, .mode-toggle { display: none !important; }
+    .main { padding: 1rem 0.5rem; max-width: 100%; }
+    .input-card { background: #fff !important; border-color: #d0d8e8 !important; break-inside: avoid; }
+    .input-card-label { color: #444 !important; }
+    .results-card { background: #fff !important; border-color: #d0d8e8 !important; break-inside: avoid; }
+    .results-header { color: #444 !important; border-color: #d0d8e8 !important; }
+    .result-label { color: #555 !important; }
+    .result-val { color: #1a1a2e !important; }
+    .result-row { border-color: #e8edf5 !important; }
+    .monthly-hero { background: #0d1f3c !important; -webkit-print-color-adjust: exact; break-inside: avoid; }
+    .monthly-hero-val { color: #7eb3ff !important; }
+    .monthly-badge { background: rgba(255,255,255,0.1) !important; border-color: rgba(255,255,255,0.2) !important; }
+    .savings-card { background: #e8f5ef !important; border-color: #b3dec9 !important; break-inside: avoid; }
+    .savings-header { color: #007a50 !important; border-color: #b3dec9 !important; }
+    .savings-row { border-color: #c8e8d8 !important; }
+    .savings-row .result-val { color: #007a50 !important; }
+    .chart-wrap { background: #fff !important; border-color: #d0d8e8 !important; break-inside: avoid; }
+    .cc-banner { background: #0d1f3c !important; -webkit-print-color-adjust: exact; break-inside: avoid; }
+    .cc-banner-title { color: #fff !important; }
+    .cc-banner-eyebrow { color: #7eb3ff !important; }
+    .cc-banner-sub { color: rgba(255,255,255,0.6) !important; }
+    .cc-breakdown { background: #fff !important; border-color: #d0d8e8 !important; }
+    .cc-breakdown-header { color: #444 !important; border-color: #d0d8e8 !important; }
+    .cc-row { border-color: #e8edf5 !important; }
+    .cc-label { color: #555 !important; }
+    .cc-val { color: #1a1a2e !important; }
+    .cc-grand { background: #e8eef8 !important; }
+    .cc-grand .cc-val { color: #1a56db !important; }
+    .cc-subtotal { background: #f4f6fa !important; }
+    .cc-total-box { background: #0d1f3c !important; -webkit-print-color-adjust: exact; break-inside: avoid; }
+    .cc-total-val { color: #7eb3ff !important; }
+    .section-head { color: #555 !important; border-color: #d0d8e8 !important; }
+    .phase-note { background: #fff8e0 !important; border-color: #e8d48a !important; color: #8a6200 !important; }
+    .prefix { background: #f0f4fa !important; border-color: #d0d8e8 !important; color: #444 !important; }
+    input[type="number"] { background: #f0f4fa !important; border-color: #d0d8e8 !important; color: #1a1a2e !important; }
+    .suffix { color: #888 !important; }
+    .cc-tag { background: #f0f4fa !important; border-color: #d0d8e8 !important; color: #666 !important; }
+    .footer { color: #999 !important; }
+    .hidden { display: none !important; }
+    .grid2, .grid3, .cc-grid { break-inside: avoid; }
+  }
 </style>
 </head>
 <body>
@@ -117,9 +184,12 @@
   <div class="header-eyebrow">Mortgage Calculator</div>
   <h1>Padrino Mortgage Analyser</h1>
   <p>Adjust any variable to see the full repayment picture</p>
-  <div class="mode-toggle">
-    <button class="mode-btn active" id="btn1" onclick="setMode(1)">Single Loan</button>
-    <button class="mode-btn" id="btn2" onclick="setMode(2)">Dual Loan</button>
+  <div style="display:flex;align-items:center;gap:12px;margin-top:1.25rem;flex-wrap:wrap;">
+    <div class="mode-toggle">
+      <button class="mode-btn active" id="btn1" onclick="setMode(1)">Single Loan</button>
+      <button class="mode-btn" id="btn2" onclick="setMode(2)">Dual Loan</button>
+    </div>
+    <button onclick="exportPDF()" class="pdf-btn">⬇ Export PDF</button>
   </div>
 </div>
 
@@ -841,6 +911,25 @@ document.querySelectorAll('input[type="number"]').forEach(el => el.addEventListe
 setMode(1);
 calcCC();
 initFormattedInputs();
+
+// PDF export — hides overlays so real input values show, triggers browser print dialog
+function exportPDF() {
+  // Make all formatted overlays invisible so input values render in print
+  document.querySelectorAll('input[type="number"]').forEach(inp => {
+    inp.style.color = '';
+    inp.style.caretColor = '';
+  });
+  document.querySelectorAll('.fmt-display, [data-overlay]').forEach(el => el.style.display = 'none');
+
+  // Brief timeout to let DOM settle then print
+  setTimeout(() => {
+    window.print();
+    // Restore after dialog closes
+    setTimeout(() => {
+      initFormattedInputs();
+    }, 1000);
+  }, 100);
+}
 </script>
 </body>
 </html>
